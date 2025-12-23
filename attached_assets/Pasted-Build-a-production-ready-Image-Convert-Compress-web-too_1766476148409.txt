@@ -1,0 +1,68 @@
+Build a production-ready Image Convert & Compress web tool using Node.js and Sharp.
+
+TECH STACK:
+- Backend: Node.js (Express)
+- Image processing: Sharp
+- File upload: Multer
+- ZIP download: Archiver
+- Frontend: HTML, CSS, Vanilla JavaScript
+- Run fully locally (no cloud services)
+
+CORE FEATURES:
+1. Upload multiple images at once
+2. Support REAL image conversion using Sharp (not browser canvas)
+3. Supported formats must include:
+   JPG, JPEG, PNG, WEBP, AVIF, TIFF, GIF, BMP, ICO, JP2, HEIF, HDR, EXR, DDS
+4. Allow user to select output format
+5. Quality slider (1–100%) with visible percentage
+6. Show final output file size in KB after conversion
+7. Smart compression mode:
+   - User enters target file size (KB)
+   - Automatically find best quality using binary search
+   - Never exceed target size
+8. Watermark support:
+   - Text watermark (bottom-right)
+   - Adjustable opacity
+9. Before / After image preview
+10. Remove image option before processing
+11. Mobile-friendly responsive UI
+12. Download all converted images as a ZIP
+
+BACKEND REQUIREMENTS:
+- Use Express server
+- Use Multer for uploads
+- Use Sharp for all image processing
+- Use binary search for smart compression
+- Clean up uploaded temp files after processing
+- Generate ZIP file containing all outputs
+- Return JSON response with:
+  - Output filenames
+  - Final sizes in KB
+  - ZIP download path
+
+FRONTEND REQUIREMENTS:
+- Single-page UI
+- Drag & drop + file picker
+- Show original size
+- Show converted size
+- Quality slider updates live %
+- Target KB input enables smart compression
+- Fetch API for upload
+- Show results list and ZIP download link
+
+PROJECT STRUCTURE:
+- server.js
+- package.json
+- public/index.html
+- uploads/ (temp)
+- output/ (final images + zip)
+
+IMPORTANT:
+- Do NOT use canvas for conversion
+- Do NOT fake format support
+- Conversion must truly work for all Sharp-supported formats
+- Code must be clean, commented, and runnable
+
+OUTPUT:
+- Provide full working code
+- Include install and run instructions
