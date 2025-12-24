@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ConversionOptions, formats } from "@shared/schema";
-import { Settings2, Wand2, Zap } from "lucide-react";
+import { Settings2, Wand2, Zap, X } from "lucide-react";
 
 interface SidebarProps {
   options: ConversionOptions;
@@ -142,14 +142,27 @@ export function Sidebar({
 
         {/* Watermark Section */}
         <div className="space-y-4 pt-4 border-t border-border/50">
-          <Label>Watermark (Optional)</Label>
+          <div className="flex items-center justify-between">
+            <Label>Watermark (Optional)</Label>
+            {options.watermarkText && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => updateOption("watermarkText", undefined)}
+                className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
+                title="Remove watermark"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
           <Input
             placeholder="© 2024 Your Name"
             value={options.watermarkText || ""}
             onChange={(e) =>
               updateOption("watermarkText", e.target.value || undefined)
             }
-            className="bg-background/50"
+            className="bg-background/50 border-gray-300 dark:border-gray-600"
           />
 
           {options.watermarkText && (
