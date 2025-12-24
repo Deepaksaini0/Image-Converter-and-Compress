@@ -101,7 +101,7 @@ export default function Home() {
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
                 <ImageIcon className="h-6 w-6 text-white" />
               </div>
-              <h1 className="text-2xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">
+              <h1 className="text-2xl font-display font-bold text-black dark:text-black">
                 Image Convert / Compress
               </h1>
             </div>
