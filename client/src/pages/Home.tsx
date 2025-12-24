@@ -102,7 +102,7 @@ export default function Home() {
                 <ImageIcon className="h-6 w-6 text-white" />
               </div>
               <h1 className="text-2xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">
-                Prism Convert
+                Image Convert / Compress
               </h1>
             </div>
             
