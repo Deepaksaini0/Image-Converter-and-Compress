@@ -203,5 +203,36 @@ export async function registerRoutes(
     }
   });
 
+  // Cleanup task: Remove files older than 30 minutes
+  const CLEANUP_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
+  const MAX_AGE = 30 * 60 * 1000; // 30 minutes
+
+  setInterval(() => {
+    console.log("Running cleanup task...");
+    const now = Date.now();
+
+    const cleanupDir = (dir: string) => {
+      fs.readdir(dir, (err, files) => {
+        if (err) return console.error(`Error reading ${dir}:`, err);
+
+        files.forEach(file => {
+          const filePath = path.join(dir, file);
+          fs.stat(filePath, (err, stats) => {
+            if (err) return;
+            if (now - stats.mtimeMs > MAX_AGE) {
+              fs.unlink(filePath, err => {
+                if (err) console.error(`Error deleting ${file}:`, err);
+                else console.log(`Deleted old file: ${file}`);
+              });
+            }
+          });
+        });
+      });
+    };
+
+    cleanupDir(UPLOADS_DIR);
+    cleanupDir(OUTPUT_DIR);
+  }, CLEANUP_INTERVAL);
+
   return httpServer;
 }
