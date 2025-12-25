@@ -322,25 +322,32 @@ export async function registerRoutes(
       // Generate PDF version
       const pdfFilename = `merged-${Date.now()}.pdf`;
       const pdfPath = path.join(OUTPUT_DIR, pdfFilename);
-      const doc = new PDFDocument({
-        size: [metadata.width || 800, metadata.height || 600],
-        margins: 0
-      });
+      
+      try {
+        const doc = new PDFDocument({
+          size: [metadata.width || 800, metadata.height || 600],
+          margins: 0
+        });
 
-      const pdfStream = fs.createWriteStream(pdfPath);
-      doc.pipe(pdfStream);
+        const pdfStream = fs.createWriteStream(pdfPath);
+        doc.pipe(pdfStream);
 
-      doc.image(outputBuffer, 0, 0, {
-        width: metadata.width,
-        height: metadata.height
-      });
+        // Use the saved image file path instead of buffer
+        doc.image(outputPath, 0, 0, {
+          width: metadata.width,
+          height: metadata.height
+        });
 
-      doc.end();
+        doc.end();
 
-      await new Promise((resolve, reject) => {
-        pdfStream.on('finish', resolve);
-        pdfStream.on('error', reject);
-      });
+        await new Promise((resolve, reject) => {
+          pdfStream.on('finish', resolve);
+          pdfStream.on('error', reject);
+        });
+      } catch (pdfError) {
+        console.error("PDF generation error:", pdfError);
+        // Continue without PDF if generation fails
+      }
 
       res.json({
         url: `/output/${outputFilename}`,
