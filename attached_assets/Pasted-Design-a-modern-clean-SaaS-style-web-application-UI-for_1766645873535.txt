@@ -1,0 +1,202 @@
+Design a modern, clean, SaaS-style web application UI for an “Image Convert / Compress” tool.
+
+Overall Style
+
+Minimal, professional, light theme
+
+Soft gradients (blue → purple accents)
+
+Rounded corners (12–16px)
+
+Smooth shadows
+
+Font: Inter / SF Pro
+
+Layout similar to iLoveIMG, TinyPNG, CloudConvert
+
+Top Navigation
+
+Logo on left: 📷 Image Tools
+
+Tabs:
+
+Convert (active)
+
+Merge
+
+Resize
+
+Watermark
+
+Right side:
+
+Login / Sign Up button
+
+Main Layout (2-Column)
+Left Sidebar – Configuration Panel
+
+Card-based vertical panel with sections:
+
+1. Format Converter
+
+Dropdown: JPG, PNG, WEBP, AVIF, TIFF, ICO
+
+Auto-recommend badge (e.g. “Best: WEBP”)
+
+2. Compression
+
+Quality slider (1–100)
+
+Real-time percentage label
+
+Toggle: Smart Compression (AI)
+
+3. Target Size
+
+Toggle ON/OFF
+
+Input field: Target size (KB)
+
+Warning text if target not achievable
+
+4. Resize
+
+Width input (px)
+
+Height input (px)
+
+Lock aspect ratio icon
+
+Preset buttons: Instagram, Facebook, Web, WhatsApp
+
+5. Metadata
+
+Toggle: Preserve metadata
+
+Checkbox list:
+
+Remove EXIF
+
+Remove GPS
+
+Remove Camera Info
+
+6. Watermark
+
+Toggle ON/OFF
+
+Tabs:
+
+Text watermark
+
+Image watermark
+
+Controls:
+
+Position selector (grid)
+
+Opacity slider
+
+Size slider
+
+Repeat watermark checkbox
+
+7. Actions
+
+Reset button
+
+Primary button: ⚡ Process Images
+
+Right Panel – Upload & Preview Area
+
+Upload Zone
+
+Large dashed drag-and-drop area
+
+Upload icon
+
+Text:
+
+“Drop your images here”
+
+“Supports JPG, PNG, WEBP, AVIF up to 50MB”
+
+Button: Browse Files
+
+After Upload – Image List View
+
+Card list with:
+
+Thumbnail preview
+
+Filename
+
+Original size
+
+Estimated new size
+
+Compression %
+
+Controls per image:
+
+Remove ❌
+
+Reorder ⬆⬇
+
+Before / After Preview
+
+Large preview card
+
+Image comparison slider
+
+Labels:
+
+Before: 1.2MB
+
+After: 320KB
+
+Saved: 73%
+
+Progress & Results
+
+Progress bar per image
+
+Status tags:
+
+Processing
+
+Completed
+
+Failed
+
+Bottom Action Bar (Sticky)
+
+Download options:
+
+Download All (ZIP)
+
+Download Individually
+
+Privacy badge:
+
+“🔒 Files deleted automatically”
+
+Mobile Version
+
+Bottom sheet configuration panel
+
+Sticky Process button
+
+Swipe image preview
+
+Extra Enhancements
+
+Drag highlight animation
+
+Tooltips on advanced options
+
+Smooth micro-interactions
+
+Accessibility-friendly contrast
+
+Generate this UI as a wireframe + high-fidelity mockup suitable for SaaS production.
