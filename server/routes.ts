@@ -3,6 +3,7 @@ import type { Server } from "http";
 import multer from "multer";
 import sharp from "sharp";
 import archiver from "archiver";
+import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
 import { api } from "@shared/routes";
@@ -318,6 +319,29 @@ export async function registerRoutes(
 
       const metadata = await sharp(outputBuffer).metadata();
 
+      // Generate PDF version
+      const pdfFilename = `merged-${Date.now()}.pdf`;
+      const pdfPath = path.join(OUTPUT_DIR, pdfFilename);
+      const doc = new PDFDocument({
+        size: [metadata.width || 800, metadata.height || 600],
+        margins: 0
+      });
+
+      const pdfStream = fs.createWriteStream(pdfPath);
+      doc.pipe(pdfStream);
+
+      doc.image(outputBuffer, 0, 0, {
+        width: metadata.width,
+        height: metadata.height
+      });
+
+      doc.end();
+
+      await new Promise((resolve, reject) => {
+        pdfStream.on('finish', resolve);
+        pdfStream.on('error', reject);
+      });
+
       res.json({
         url: `/output/${outputFilename}`,
         filename: outputFilename,
@@ -325,6 +349,8 @@ export async function registerRoutes(
         newSize: outputBuffer.length,
         width: metadata.width || 0,
         height: metadata.height || 0,
+        pdfUrl: `/output/${pdfFilename}`,
+        pdfFilename: pdfFilename,
       });
     } catch (error) {
       console.error("Merge error:", error);

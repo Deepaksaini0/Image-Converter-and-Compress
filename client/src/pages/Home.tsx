@@ -324,18 +324,35 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* Download Button */}
-                      <Button 
-                        asChild 
-                        className="w-full mt-6" 
-                        size="lg"
-                        data-testid="button-download-merged"
-                      >
-                        <a href={mergedResult.url} download={mergedResult.filename}>
-                          <Download className="mr-2 h-4 w-4" />
-                          Download Merged Image
-                        </a>
-                      </Button>
+                      {/* Download Buttons */}
+                      <div className="mt-6 space-y-3">
+                        <Button 
+                          asChild 
+                          className="w-full" 
+                          size="lg"
+                          data-testid="button-download-merged"
+                        >
+                          <a href={mergedResult.url} download={mergedResult.filename}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download as {mergedResult.filename.split('.').pop()?.toUpperCase()}
+                          </a>
+                        </Button>
+                        
+                        {mergedResult.pdfUrl && (
+                          <Button 
+                            asChild 
+                            variant="outline"
+                            className="w-full" 
+                            size="lg"
+                            data-testid="button-download-pdf"
+                          >
+                            <a href={mergedResult.pdfUrl} download={mergedResult.pdfFilename}>
+                              <Download className="mr-2 h-4 w-4" />
+                              Download as PDF
+                            </a>
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </>
                 ) : null}

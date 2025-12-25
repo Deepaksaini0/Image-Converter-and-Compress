@@ -84,7 +84,9 @@ export const mergeResponseSchema = z.object({
   originalSize: z.number(),
   newSize: z.number(),
   width: z.number(),
-  height: z.number()
+  height: z.number(),
+  pdfUrl: z.string().optional(),
+  pdfFilename: z.string().optional()
 });
 
 export type MergeResponse = z.infer<typeof mergeResponseSchema>;
