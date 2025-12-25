@@ -3,7 +3,9 @@ import {
   conversionOptionsSchema, 
   processRequestSchema, 
   processResponseSchema, 
-  uploadedFileSchema 
+  uploadedFileSchema,
+  mergeRequestSchema,
+  mergeResponseSchema
 } from './schema';
 
 export const api = {
@@ -22,6 +24,16 @@ export const api = {
     input: processRequestSchema,
     responses: {
       200: processResponseSchema,
+      400: z.object({ message: z.string() }),
+      500: z.object({ message: z.string() })
+    }
+  },
+  merge: {
+    method: 'POST' as const,
+    path: '/api/merge',
+    input: mergeRequestSchema,
+    responses: {
+      200: mergeResponseSchema,
       400: z.object({ message: z.string() }),
       500: z.object({ message: z.string() })
     }

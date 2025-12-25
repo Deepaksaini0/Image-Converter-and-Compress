@@ -10,6 +10,8 @@ export const formats = [
   "bmp", "ico", "jp2", "heif", "jxl" // Sharp supports these (some depend on libvips)
 ] as const;
 
+export const mergeDirections = ["horizontal", "vertical", "grid"] as const;
+
 export const conversionOptionsSchema = z.object({
   format: z.enum(formats).default("jpeg"),
   quality: z.number().min(1).max(100).default(80),
@@ -20,6 +22,16 @@ export const conversionOptionsSchema = z.object({
 });
 
 export type ConversionOptions = z.infer<typeof conversionOptionsSchema>;
+
+export const mergeOptionsSchema = z.object({
+  direction: z.enum(mergeDirections).default("horizontal"),
+  spacing: z.number().min(0).max(50).default(0).describe("Space between images in pixels"),
+  backgroundColor: z.string().default("#ffffff").describe("Background color for spacing"),
+  format: z.enum(formats).default("jpeg"),
+  quality: z.number().min(1).max(100).default(80)
+});
+
+export type MergeOptions = z.infer<typeof mergeOptionsSchema>;
 
 export const uploadedFileSchema = z.object({
   id: z.string(),
@@ -38,6 +50,13 @@ export const processRequestSchema = z.object({
 });
 
 export type ProcessRequest = z.infer<typeof processRequestSchema>;
+
+export const mergeRequestSchema = z.object({
+  fileIds: z.array(z.string()).min(2, "Need at least 2 images to merge"),
+  options: mergeOptionsSchema
+});
+
+export type MergeRequest = z.infer<typeof mergeRequestSchema>;
 
 export const processedResultSchema = z.object({
   id: z.string(), // Maps back to upload ID
@@ -58,3 +77,14 @@ export const processResponseSchema = z.object({
 });
 
 export type ProcessResponse = z.infer<typeof processResponseSchema>;
+
+export const mergeResponseSchema = z.object({
+  url: z.string(),
+  filename: z.string(),
+  originalSize: z.number(),
+  newSize: z.number(),
+  width: z.number(),
+  height: z.number()
+});
+
+export type MergeResponse = z.infer<typeof mergeResponseSchema>;

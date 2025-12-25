@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
-import { api, type ProcessRequest, type ProcessResponse, type UploadedFile } from "@shared/routes";
+import { api } from "@shared/routes";
+import { type ProcessRequest, type ProcessResponse, type MergeRequest, type MergeResponse, type UploadedFile } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 export function useUploadFiles() {
@@ -57,6 +58,37 @@ export function useProcessFiles() {
     onError: (error) => {
       toast({
         title: "Conversion Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useMergeFiles() {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: MergeRequest) => {
+      // Validate locally first
+      const validated = api.merge.input.parse(data);
+
+      const res = await fetch(api.merge.path, {
+        method: api.merge.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(validated),
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.message || "Merge failed");
+      }
+
+      return api.merge.responses[200].parse(await res.json());
+    },
+    onError: (error) => {
+      toast({
+        title: "Merge Failed",
         description: error.message,
         variant: "destructive",
       });

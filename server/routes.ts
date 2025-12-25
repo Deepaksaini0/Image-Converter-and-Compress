@@ -6,7 +6,7 @@ import archiver from "archiver";
 import fs from "fs";
 import path from "path";
 import { api } from "@shared/routes";
-import { conversionOptionsSchema, processRequestSchema, formats } from "@shared/schema";
+import { conversionOptionsSchema, processRequestSchema, mergeRequestSchema, formats } from "@shared/schema";
 import { z } from "zod";
 
 // Setup directories
@@ -200,6 +200,135 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Processing error:", error);
       res.status(500).json({ message: "Error processing images" });
+    }
+  });
+
+  // Merge Endpoint
+  app.post(api.merge.path, async (req, res) => {
+    try {
+      const { fileIds, options } = mergeRequestSchema.parse(req.body);
+
+      if (fileIds.length < 2) {
+        return res.status(400).json({ message: "Need at least 2 images to merge" });
+      }
+
+      // Load all images
+      const images = await Promise.all(
+        fileIds.map(async (fileId) => {
+          const inputPath = path.join(UPLOADS_DIR, fileId);
+          if (!fs.existsSync(inputPath)) return null;
+          const data = await sharp(inputPath).toBuffer();
+          const metadata = await sharp(data).metadata();
+          return { data, metadata, fileId };
+        })
+      );
+
+      const validImages = images.filter((img) => img !== null);
+      if (validImages.length < 2) {
+        return res.status(400).json({ message: "Not enough valid images to merge" });
+      }
+
+      let merged: sharp.Sharp;
+      const spacing = options.spacing || 0;
+      const bgColor = options.backgroundColor || "#ffffff";
+
+      if (options.direction === "horizontal") {
+        // Horizontal merge
+        const totalWidth = validImages.reduce((sum, img) => sum + (img.metadata.width || 0) + spacing, -spacing);
+        const maxHeight = Math.max(...validImages.map((img) => img.metadata.height || 0));
+
+        const composites: sharp.OverlayOptions[] = [];
+        let currentX = 0;
+
+        for (const img of validImages) {
+          composites.push({
+            input: img.data,
+            left: currentX,
+            top: Math.floor(((maxHeight || 0) - (img.metadata.height || 0)) / 2),
+          });
+          currentX += (img.metadata.width || 0) + spacing;
+        }
+
+        merged = sharp({
+          create: {
+            width: totalWidth,
+            height: maxHeight || 100,
+            channels: 3,
+            background: bgColor,
+          },
+        }).composite(composites);
+      } else if (options.direction === "vertical") {
+        // Vertical merge
+        const maxWidth = Math.max(...validImages.map((img) => img.metadata.width || 0));
+        const totalHeight = validImages.reduce((sum, img) => sum + (img.metadata.height || 0) + spacing, -spacing);
+
+        const composites: sharp.OverlayOptions[] = [];
+        let currentY = 0;
+
+        for (const img of validImages) {
+          composites.push({
+            input: img.data,
+            left: Math.floor(((maxWidth || 0) - (img.metadata.width || 0)) / 2),
+            top: currentY,
+          });
+          currentY += (img.metadata.height || 0) + spacing;
+        }
+
+        merged = sharp({
+          create: {
+            width: maxWidth || 100,
+            height: totalHeight,
+            channels: 3,
+            background: bgColor,
+          },
+        }).composite(composites);
+      } else {
+        // Grid merge (2x2 or more)
+        const cols = Math.ceil(Math.sqrt(validImages.length));
+        const maxWidth = Math.max(...validImages.map((img) => img.metadata.width || 0));
+        const maxHeight = Math.max(...validImages.map((img) => img.metadata.height || 0));
+
+        const composites: sharp.OverlayOptions[] = [];
+        validImages.forEach((img, index) => {
+          const col = index % cols;
+          const row = Math.floor(index / cols);
+          composites.push({
+            input: img.data,
+            left: col * (maxWidth + spacing),
+            top: row * (maxHeight + spacing),
+          });
+        });
+
+        merged = sharp({
+          create: {
+            width: cols * (maxWidth + spacing) - spacing,
+            height: Math.ceil(validImages.length / cols) * (maxHeight + spacing) - spacing,
+            channels: 3,
+            background: bgColor,
+          },
+        }).composite(composites);
+      }
+
+      const format = options.format as keyof sharp.FormatEnum;
+      const outputBuffer = await merged.toFormat(format, { quality: options.quality }).toBuffer();
+
+      const outputFilename = `merged-${Date.now()}.${format}`;
+      const outputPath = path.join(OUTPUT_DIR, outputFilename);
+      fs.writeFileSync(outputPath, outputBuffer);
+
+      const metadata = await sharp(outputBuffer).metadata();
+
+      res.json({
+        url: `/output/${outputFilename}`,
+        filename: outputFilename,
+        originalSize: validImages.reduce((sum, img) => sum + (img.metadata.size || 0), 0),
+        newSize: outputBuffer.length,
+        width: metadata.width || 0,
+        height: metadata.height || 0,
+      });
+    } catch (error) {
+      console.error("Merge error:", error);
+      res.status(500).json({ message: "Error merging images" });
     }
   });
 
