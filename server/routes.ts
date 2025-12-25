@@ -171,7 +171,7 @@ export async function registerRoutes(
         }
 
         // Save output
-        const outputFilename = `processed-${path.parse(fileId).`image-converter-and-compress`}.${format}`;
+        const outputFilename = `processed-${path.parse(fileId).name}.${format}`;
         const outputPath = path.join(OUTPUT_DIR, outputFilename);
         fs.writeFileSync(outputPath, outputBuffer);
 
