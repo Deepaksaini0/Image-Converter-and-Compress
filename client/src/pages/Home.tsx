@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { UploadedFile, ConversionOptions, ProcessedResult, MergeOptions } from "@shared/schema";
-import { useUploadFiles, useProcessFiles, useMergeFiles } from "@/hooks/use-converter";
+import { useUploadFiles, useProcessFiles, useMergeFiles, useDocumentConvert } from "@/hooks/use-converter";
 import { Dropzone } from "@/components/Dropzone";
 import { FileCard } from "@/components/FileCard";
 import { Sidebar } from "@/components/Sidebar";
 import { MergeControls } from "@/components/MergeControls";
+import { DocumentControls } from "@/components/DocumentControls";
 import { ResultCard } from "@/components/ResultCard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Download, RotateCcw, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Download, RotateCcw, Image as ImageIcon, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,8 +17,9 @@ export default function Home() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [results, setResults] = useState<ProcessedResult[] | null>(null);
   const [mergedResult, setMergedResult] = useState<any>(null);
+  const [documentResult, setDocumentResult] = useState<any>(null);
   const [zipUrl, setZipUrl] = useState<string | null>(null);
-  const [mode, setMode] = useState<"convert" | "merge">("convert");
+  const [mode, setMode] = useState<"convert" | "merge" | "document">("convert");
   
   const [options, setOptions] = useState<ConversionOptions>({
     format: "jpeg",
@@ -37,6 +39,7 @@ export default function Home() {
   const uploadMutation = useUploadFiles();
   const processMutation = useProcessFiles();
   const mergeMutation = useMergeFiles();
+  const documentMutation = useDocumentConvert();
   const { toast } = useToast();
 
   const handleDrop = async (files: File[]) => {
@@ -90,14 +93,30 @@ export default function Home() {
     }
   };
 
+  const handleDocumentConvert = async () => {
+    if (uploadedFiles.length === 0) return;
+
+    try {
+      const response = await documentMutation.mutateAsync({
+        fileIds: uploadedFiles.map(f => f.id),
+        options: { format: "pdf" },
+      });
+      
+      setDocumentResult(response);
+    } catch (error) {
+      // Handled by mutation hook
+    }
+  };
+
   const handleReset = () => {
     setUploadedFiles([]);
     setResults(null);
     setMergedResult(null);
+    setDocumentResult(null);
     setZipUrl(null);
   };
 
-  const showResults = results !== null || mergedResult !== null;
+  const showResults = results !== null || mergedResult !== null || documentResult !== null;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row overflow-hidden">
@@ -113,9 +132,10 @@ export default function Home() {
             {/* Mode Tabs */}
             <div className="flex-shrink-0 border-b border-border/50 p-4">
               <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="convert">Convert</TabsTrigger>
                   <TabsTrigger value="merge">Merge</TabsTrigger>
+                  <TabsTrigger value="document">Document</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -130,7 +150,7 @@ export default function Home() {
                   isProcessing={processMutation.isPending}
                   fileCount={uploadedFiles.length}
                 />
-              ) : (
+              ) : mode === "merge" ? (
                 <div className="p-6 space-y-6">
                   <MergeControls options={mergeOptions} setOptions={setMergeOptions} />
                   <Button 
@@ -141,6 +161,19 @@ export default function Home() {
                     data-testid="button-merge"
                   >
                     {mergeMutation.isPending ? "Merging..." : "Merge Images"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="p-6 space-y-6">
+                  <DocumentControls format="pdf" />
+                  <Button 
+                    onClick={handleDocumentConvert} 
+                    disabled={uploadedFiles.length === 0 || documentMutation.isPending}
+                    className="w-full"
+                    size="lg"
+                    data-testid="button-document-convert"
+                  >
+                    {documentMutation.isPending ? "Converting..." : "Convert to PDF"}
                   </Button>
                 </div>
               )}
@@ -172,7 +205,7 @@ export default function Home() {
             </div>
             
             {showResults && (
-              <Button variant="ghost" onClick={() => { setResults(null); setMergedResult(null); }} className="hover:bg-white/5" data-testid="button-back">
+              <Button variant="ghost" onClick={() => { setResults(null); setMergedResult(null); setDocumentResult(null); }} className="hover:bg-white/5" data-testid="button-back">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Edit
               </Button>
@@ -192,7 +225,7 @@ export default function Home() {
                 <section>
                   <Dropzone onDrop={handleDrop} isUploading={uploadMutation.isPending} />
                   <p className="text-sm text-muted-foreground mt-2">
-                    {mode === "merge" ? "Select 2+ images to merge them together" : "Upload images to convert or compress"}
+                    {mode === "merge" ? "Select 2+ images to merge them together" : mode === "document" ? "Upload documents (XLSX, XLS, CSV, ODS, DOCX) to convert to PDF" : "Upload images to convert or compress"}
                   </p>
                 </section>
 
@@ -352,6 +385,68 @@ export default function Home() {
                             </a>
                           </Button>
                         )}
+                      </div>
+                    </div>
+                  </>
+                ) : documentResult ? (
+                  <>
+                    {/* Results Header for Document */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel p-6 rounded-2xl">
+                      <div>
+                        <h2 className="text-2xl font-bold font-display">Conversion Complete!</h2>
+                        <p className="text-muted-foreground mt-1">
+                          Document successfully converted to PDF.
+                        </p>
+                      </div>
+                      <div className="flex gap-3">
+                        <Button 
+                          variant="outline" 
+                          onClick={handleReset}
+                          className="border-white/10 hover:bg-white/5"
+                          data-testid="button-start-over-document"
+                        >
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Start Over
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Document Result Info */}
+                    <div className="max-w-2xl mx-auto">
+                      <div className="p-6 bg-card rounded-lg border border-border">
+                        <div className="flex items-center gap-4">
+                          <FileText className="h-12 w-12 text-primary" />
+                          <div className="flex-1">
+                            <p className="text-sm text-muted-foreground">PDF File</p>
+                            <p className="text-lg font-semibold">{documentResult.filename}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-card rounded-lg border border-border">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">Original Size</p>
+                          <p className="text-lg font-semibold mt-1">{(documentResult.originalSize / 1024).toFixed(2)} KB</p>
+                        </div>
+                        <div className="p-4 bg-card rounded-lg border border-border">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">PDF Size</p>
+                          <p className="text-lg font-semibold mt-1">{(documentResult.newSize / 1024).toFixed(2)} KB</p>
+                        </div>
+                      </div>
+
+                      {/* Download Button */}
+                      <div className="mt-6">
+                        <Button 
+                          asChild 
+                          className="w-full" 
+                          size="lg"
+                          data-testid="button-download-document-pdf"
+                        >
+                          <a href={documentResult.url} download={documentResult.filename}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download PDF
+                          </a>
+                        </Button>
                       </div>
                     </div>
                   </>

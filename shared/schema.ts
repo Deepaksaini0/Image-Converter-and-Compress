@@ -90,3 +90,28 @@ export const mergeResponseSchema = z.object({
 });
 
 export type MergeResponse = z.infer<typeof mergeResponseSchema>;
+
+// Document formats
+export const documentFormats = ["xlsx", "xls", "csv", "ods", "docx"] as const;
+
+export const documentConversionOptionsSchema = z.object({
+  format: z.enum(documentFormats).default("pdf")
+});
+
+export type DocumentConversionOptions = z.infer<typeof documentConversionOptionsSchema>;
+
+export const documentConversionRequestSchema = z.object({
+  fileIds: z.array(z.string()).min(1, "Need at least 1 document to convert"),
+  options: documentConversionOptionsSchema
+});
+
+export type DocumentConversionRequest = z.infer<typeof documentConversionRequestSchema>;
+
+export const documentConversionResponseSchema = z.object({
+  url: z.string(),
+  filename: z.string(),
+  originalSize: z.number(),
+  newSize: z.number(),
+});
+
+export type DocumentConversionResponse = z.infer<typeof documentConversionResponseSchema>;

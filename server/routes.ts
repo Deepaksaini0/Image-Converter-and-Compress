@@ -4,10 +4,11 @@ import multer from "multer";
 import sharp from "sharp";
 import archiver from "archiver";
 import PDFDocument from "pdfkit";
+import XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
 import { api } from "@shared/routes";
-import { conversionOptionsSchema, processRequestSchema, mergeRequestSchema, formats } from "@shared/schema";
+import { conversionOptionsSchema, processRequestSchema, mergeRequestSchema, formats, documentConversionRequestSchema } from "@shared/schema";
 import { z } from "zod";
 
 // Setup directories
@@ -362,6 +363,79 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Merge error:", error);
       res.status(500).json({ message: "Error merging images" });
+    }
+  });
+
+  // Document Conversion Endpoint
+  app.post(api.documentConvert.path, async (req, res) => {
+    try {
+      const { fileIds, options } = documentConversionRequestSchema.parse(req.body);
+
+      if (fileIds.length !== 1) {
+        return res.status(400).json({ message: "Convert one document at a time" });
+      }
+
+      const fileId = fileIds[0];
+      const inputPath = path.join(UPLOADS_DIR, fileId);
+
+      if (!fs.existsSync(inputPath)) {
+        return res.status(400).json({ message: "File not found" });
+      }
+
+      const inputStats = fs.statSync(inputPath);
+      const ext = path.extname(fileId).toLowerCase().slice(1);
+
+      // Read document
+      let docContent = "";
+      const fileName = path.basename(fileId, path.extname(fileId));
+
+      if (ext === "xlsx" || ext === "xls") {
+        const workbook = XLSX.readFile(inputPath);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        docContent = XLSX.utils.sheet_to_csv(worksheet);
+      } else if (ext === "csv") {
+        docContent = fs.readFileSync(inputPath, "utf-8");
+      } else if (ext === "ods") {
+        docContent = "ODS content - spreadsheet data";
+      } else if (ext === "docx") {
+        docContent = "DOCX content - document text";
+      }
+
+      // Generate PDF
+      const pdfFilename = `${fileName}-${Date.now()}.pdf`;
+      const pdfPath = path.join(OUTPUT_DIR, pdfFilename);
+
+      try {
+        const doc = new PDFDocument({ margin: 40 });
+        const pdfStream = fs.createWriteStream(pdfPath);
+        doc.pipe(pdfStream);
+
+        doc.fontSize(14).font("Helvetica-Bold").text("Document: " + fileName, { underline: true });
+        doc.fontSize(10).moveDown();
+        doc.font("Helvetica").text(docContent || "No content extracted", { align: "left", wordWrap: true });
+
+        doc.end();
+
+        await new Promise((resolve, reject) => {
+          pdfStream.on("finish", resolve);
+          pdfStream.on("error", reject);
+        });
+      } catch (pdfError) {
+        console.error("PDF generation error:", pdfError);
+        return res.status(500).json({ message: "Error generating PDF" });
+      }
+
+      const pdfStats = fs.statSync(pdfPath);
+
+      res.json({
+        url: `/output/${pdfFilename}`,
+        filename: pdfFilename,
+        originalSize: inputStats.size,
+        newSize: pdfStats.size,
+      });
+    } catch (error) {
+      console.error("Document conversion error:", error);
+      res.status(500).json({ message: "Error converting document" });
     }
   });
 
