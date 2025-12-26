@@ -135,7 +135,7 @@ export default function Home() {
             <div className="flex-shrink-0 border-b border-border/50 p-4">
               <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="convert">Convert</TabsTrigger>
+                  <TabsTrigger value="convert" className="btn-secondary">Convert</TabsTrigger>
                   <TabsTrigger value="merge">Merge</TabsTrigger>
                   <TabsTrigger value="document">Document</TabsTrigger>
                 </TabsList>
