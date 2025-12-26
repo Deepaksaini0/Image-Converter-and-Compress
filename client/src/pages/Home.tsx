@@ -136,8 +136,8 @@ export default function Home() {
               <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="convert" className="btn-secondary bg-gray-300 text-black hover:bg-gray-400">Convert</TabsTrigger>
-                  <TabsTrigger value="merge">Merge</TabsTrigger>
-                  <TabsTrigger value="document">Document</TabsTrigger>
+                  <TabsTrigger value="merge" className="btn-secondary bg-gray-300 text-black hover:bg-gray-400">Merge</TabsTrigger>
+                  <TabsTrigger value="document" className="btn-secondary bg-gray-300 text-black hover:bg-gray-400">Document</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
