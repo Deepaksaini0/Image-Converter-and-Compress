@@ -172,7 +172,7 @@ export default function Home() {
             </div>
             
             {showResults && (
-              <Button variant="ghost" onClick={() => setResults(null)} className="hover:bg-white/5" data-testid="button-back">
+              <Button variant="ghost" onClick={() => { setResults(null); setMergedResult(null); }} className="hover:bg-white/5" data-testid="button-back">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Edit
               </Button>
