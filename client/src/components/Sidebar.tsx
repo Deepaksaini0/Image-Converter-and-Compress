@@ -36,7 +36,7 @@ export function Sidebar({
   };
 
   return (
-    <div className="h-full flex flex-col bg-card/50 border-r border-border backdrop-blur-sm bg-gray-300 text-white">
+    <div className="h-full flex flex-col bg-card/50 border-r border-border backdrop-blur-sm bg-gray-300 text-black">
       <div className="p-6 border-b border-border">
         <div className="flex items-center gap-3 text-primary mb-1">
           <Settings2 className="h-5 w-5" />
@@ -185,7 +185,7 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className="p-6 border-t border-border bg-card/50">
+      <div className="p-6 border-t border-border bg-card/50 bg-gray-300 text-black">
         <Button
           className="w-full h-12 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
           size="lg"
