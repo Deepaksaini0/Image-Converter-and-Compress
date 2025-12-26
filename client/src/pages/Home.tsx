@@ -132,7 +132,7 @@ export default function Home() {
         >
           <div className="h-full flex flex-col overflow-hidden">
             {/* Mode Tabs */}
-            <div className="flex-shrink-0 border-b border-border/50 p-4">
+            <div className="flex-shrink-0 border-b border-border/50 p-4 bg-gray-300">
               <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="convert" className="btn-secondary bg-gray-300 text-black hover:bg-gray-400">Convert</TabsTrigger>
