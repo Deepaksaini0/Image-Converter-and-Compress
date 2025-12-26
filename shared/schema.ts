@@ -92,10 +92,11 @@ export const mergeResponseSchema = z.object({
 export type MergeResponse = z.infer<typeof mergeResponseSchema>;
 
 // Document formats
-export const documentFormats = ["xlsx", "xls", "csv", "ods", "docx"] as const;
+export const documentInputFormats = ["xlsx", "xls", "csv", "ods", "docx", "pdf"] as const;
+export const documentOutputFormats = ["pdf", "xlsx", "csv", "docx"] as const;
 
 export const documentConversionOptionsSchema = z.object({
-  format: z.enum(documentFormats).default("pdf")
+  outputFormat: z.enum(documentOutputFormats).default("pdf")
 });
 
 export type DocumentConversionOptions = z.infer<typeof documentConversionOptionsSchema>;

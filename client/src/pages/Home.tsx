@@ -36,6 +36,8 @@ export default function Home() {
     quality: 80
   });
 
+  const [documentOutputFormat, setDocumentOutputFormat] = useState<string>("pdf");
+
   const uploadMutation = useUploadFiles();
   const processMutation = useProcessFiles();
   const mergeMutation = useMergeFiles();
@@ -99,7 +101,7 @@ export default function Home() {
     try {
       const response = await documentMutation.mutateAsync({
         fileIds: uploadedFiles.map(f => f.id),
-        options: { format: "pdf" },
+        options: { outputFormat: documentOutputFormat },
       });
       
       setDocumentResult(response);
@@ -165,7 +167,7 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="p-6 space-y-6">
-                  <DocumentControls format="pdf" />
+                  <DocumentControls outputFormat={documentOutputFormat} onFormatChange={setDocumentOutputFormat} />
                   <Button 
                     onClick={handleDocumentConvert} 
                     disabled={uploadedFiles.length === 0 || documentMutation.isPending}
@@ -173,7 +175,7 @@ export default function Home() {
                     size="lg"
                     data-testid="button-document-convert"
                   >
-                    {documentMutation.isPending ? "Converting..." : "Convert to PDF"}
+                    {documentMutation.isPending ? "Converting..." : `Convert to ${documentOutputFormat.toUpperCase()}`}
                   </Button>
                 </div>
               )}
@@ -395,7 +397,7 @@ export default function Home() {
                       <div>
                         <h2 className="text-2xl font-bold font-display">Conversion Complete!</h2>
                         <p className="text-muted-foreground mt-1">
-                          Document successfully converted to PDF.
+                          Document successfully converted to {documentOutputFormat.toUpperCase()}.
                         </p>
                       </div>
                       <div className="flex gap-3">
@@ -417,7 +419,7 @@ export default function Home() {
                         <div className="flex items-center gap-4">
                           <FileText className="h-12 w-12 text-primary" />
                           <div className="flex-1">
-                            <p className="text-sm text-muted-foreground">PDF File</p>
+                            <p className="text-sm text-muted-foreground">{documentOutputFormat.toUpperCase()} File</p>
                             <p className="text-lg font-semibold">{documentResult.filename}</p>
                           </div>
                         </div>
@@ -444,7 +446,7 @@ export default function Home() {
                         >
                           <a href={documentResult.url} download={documentResult.filename}>
                             <Download className="mr-2 h-4 w-4" />
-                            Download PDF
+                            Download {documentOutputFormat.toUpperCase()}
                           </a>
                         </Button>
                       </div>

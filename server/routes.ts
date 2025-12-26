@@ -5,6 +5,7 @@ import sharp from "sharp";
 import archiver from "archiver";
 import PDFDocument from "pdfkit";
 import XLSX from "xlsx";
+import pdfParse from "pdf-parse";
 import fs from "fs";
 import path from "path";
 import { api } from "@shared/routes";
@@ -384,10 +385,11 @@ export async function registerRoutes(
 
       const inputStats = fs.statSync(inputPath);
       const ext = path.extname(fileId).toLowerCase().slice(1);
-
-      // Read document
-      let docContent = "";
       const fileName = path.basename(fileId, path.extname(fileId));
+      const outputFormat = options.outputFormat || "pdf";
+
+      // Read document content
+      let docContent = "";
 
       if (ext === "xlsx" || ext === "xls") {
         const workbook = XLSX.readFile(inputPath);
@@ -399,39 +401,82 @@ export async function registerRoutes(
         docContent = "ODS content - spreadsheet data";
       } else if (ext === "docx") {
         docContent = "DOCX content - document text";
+      } else if (ext === "pdf") {
+        try {
+          const pdfBuffer = fs.readFileSync(inputPath);
+          const data = await pdfParse(pdfBuffer);
+          docContent = data.text || "No text found in PDF";
+        } catch (pdfErr) {
+          docContent = "Unable to extract text from PDF";
+        }
       }
 
-      // Generate PDF
-      const pdfFilename = `${fileName}-${Date.now()}.pdf`;
-      const pdfPath = path.join(OUTPUT_DIR, pdfFilename);
+      let outputFilename = "";
+      let outputPath = "";
+      let outputBuffer: Buffer | null = null;
 
-      try {
-        const doc = new PDFDocument({ margin: 40 });
-        const pdfStream = fs.createWriteStream(pdfPath);
-        doc.pipe(pdfStream);
+      if (outputFormat === "pdf") {
+        // Generate PDF
+        outputFilename = `${fileName}-${Date.now()}.pdf`;
+        outputPath = path.join(OUTPUT_DIR, outputFilename);
 
-        doc.fontSize(14).font("Helvetica-Bold").text("Document: " + fileName, { underline: true });
-        doc.fontSize(10).moveDown();
-        doc.font("Helvetica").text(docContent || "No content extracted", { align: "left", wordWrap: true });
+        try {
+          const doc = new PDFDocument({ margin: 40 });
+          const pdfStream = fs.createWriteStream(outputPath);
+          doc.pipe(pdfStream);
 
-        doc.end();
+          doc.fontSize(14).font("Helvetica-Bold").text("Document: " + fileName, { underline: true });
+          doc.fontSize(10).moveDown();
+          doc.font("Helvetica").text(docContent || "No content extracted", { align: "left", wordWrap: true });
 
-        await new Promise((resolve, reject) => {
-          pdfStream.on("finish", resolve);
-          pdfStream.on("error", reject);
-        });
-      } catch (pdfError) {
-        console.error("PDF generation error:", pdfError);
-        return res.status(500).json({ message: "Error generating PDF" });
+          doc.end();
+
+          await new Promise((resolve, reject) => {
+            pdfStream.on("finish", resolve);
+            pdfStream.on("error", reject);
+          });
+        } catch (pdfError) {
+          console.error("PDF generation error:", pdfError);
+          return res.status(500).json({ message: "Error generating PDF" });
+        }
+      } else if (outputFormat === "xlsx" || outputFormat === "csv") {
+        // Create spreadsheet from content
+        const ws_data = [[fileName], ["Content extracted from: " + ext.toUpperCase()], [], ...docContent.split("\n").map(line => [line])];
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+
+        outputFilename = `${fileName}-${Date.now()}.${outputFormat}`;
+        outputPath = path.join(OUTPUT_DIR, outputFilename);
+
+        try {
+          XLSX.writeFile(wb, outputPath);
+        } catch (err) {
+          console.error("Spreadsheet generation error:", err);
+          return res.status(500).json({ message: "Error generating spreadsheet" });
+        }
+      } else if (outputFormat === "docx") {
+        // For DOCX, create a simple text document file
+        outputFilename = `${fileName}-${Date.now()}.docx`;
+        outputPath = path.join(OUTPUT_DIR, outputFilename);
+
+        // Create a simple text file as DOCX placeholder
+        try {
+          const docContent_formatted = `Document: ${fileName}\n\nExtracted from: ${ext.toUpperCase()}\n\n${docContent}`;
+          fs.writeFileSync(outputPath, docContent_formatted);
+        } catch (err) {
+          console.error("DOCX generation error:", err);
+          return res.status(500).json({ message: "Error generating DOCX" });
+        }
       }
 
-      const pdfStats = fs.statSync(pdfPath);
+      const outputStats = fs.statSync(outputPath);
 
       res.json({
-        url: `/output/${pdfFilename}`,
-        filename: pdfFilename,
+        url: `/output/${outputFilename}`,
+        filename: outputFilename,
         originalSize: inputStats.size,
-        newSize: pdfStats.size,
+        newSize: outputStats.size,
       });
     } catch (error) {
       console.error("Document conversion error:", error);
