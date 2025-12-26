@@ -36,7 +36,7 @@ export function Sidebar({
   };
 
   return (
-    <div className="h-full flex flex-col bg-card/50 border-r border-border backdrop-blur-sm">
+    <div className="h-full flex flex-col bg-card/50 border-r border-border backdrop-blur-sm bg-gray-300 text-white">
       <div className="p-6 border-b border-border">
         <div className="flex items-center gap-3 text-primary mb-1">
           <Settings2 className="h-5 w-5" />
