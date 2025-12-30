@@ -9,7 +9,7 @@ import { DocumentControls } from "@/components/DocumentControls";
 import { ResultCard } from "@/components/ResultCard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Download, RotateCcw, Image as ImageIcon, FileText, HelpCircle } from "lucide-react";
+import { ArrowLeft, Download, RotateCcw, Image as ImageIcon, FileText, HelpCircle, FileJson } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -209,12 +209,20 @@ export default function Home() {
             
             <div className="flex items-center gap-2">
               {!showResults && (
-                <Link href="/faq">
-                  <Button variant="outline" className="flex items-center gap-2 hover-elevate" data-testid="button-faq-nav">
-                    <HelpCircle className="h-4 w-4" />
-                    <span className="hidden sm:inline">FAQ Schema</span>
-                  </Button>
-                </Link>
+                <>
+                  <Link href="/faq">
+                    <Button variant="outline" className="flex items-center gap-2 hover-elevate" data-testid="button-faq-nav">
+                      <HelpCircle className="h-4 w-4" />
+                      <span className="hidden sm:inline">FAQ Schema</span>
+                    </Button>
+                  </Link>
+                  <Link href="/llms">
+                    <Button variant="outline" className="flex items-center gap-2 hover-elevate" data-testid="button-llms-nav">
+                      <FileJson className="h-4 w-4" />
+                      <span className="hidden sm:inline">llms.txt</span>
+                    </Button>
+                  </Link>
+                </>
               )}
               {showResults && (
                 <Button variant="ghost" onClick={() => { setResults(null); setMergedResult(null); setDocumentResult(null); }} className="hover:bg-white/5" data-testid="button-back">
