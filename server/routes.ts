@@ -5,12 +5,14 @@ import sharp from "sharp";
 import archiver from "archiver";
 import PDFDocument from "pdfkit";
 import XLSX from "xlsx";
-import pdfParse from "pdf-parse";
 import fs from "fs";
 import path from "path";
 import { api } from "@shared/routes";
 import { conversionOptionsSchema, processRequestSchema, mergeRequestSchema, formats, documentConversionRequestSchema } from "@shared/schema";
 import { z } from "zod";
+
+// pdf-parse - handle ESM import
+let pdfParse: any;
 
 // Setup directories
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
@@ -36,6 +38,11 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Load pdf-parse
+  if (!pdfParse) {
+    const pdfParseModule = await import("pdf-parse");
+    pdfParse = pdfParseModule.default || pdfParseModule;
+  }
 
   // Serve static files from uploads and output
   app.use('/uploads', (req, res, next) => {
