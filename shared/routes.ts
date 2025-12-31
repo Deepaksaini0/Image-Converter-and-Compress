@@ -49,6 +49,30 @@ export const api = {
       400: z.object({ message: z.string() }),
       500: z.object({ message: z.string() })
     }
+  },
+  seoAudit: {
+    method: 'POST' as const,
+    path: '/api/seo-audit',
+    input: z.object({ url: z.string().url() }),
+    responses: {
+      200: z.object({
+        url: z.string(),
+        score: z.number(),
+        timestamp: z.string(),
+        checks: z.array(z.object({
+          category: z.string(),
+          items: z.array(z.object({
+            name: z.string(),
+            status: z.enum(['pass', 'warning', 'fail']),
+            message: z.string(),
+            severity: z.enum(['critical', 'warning', 'info'])
+          }))
+        })),
+        recommendations: z.array(z.string())
+      }),
+      400: z.object({ message: z.string() }),
+      500: z.object({ message: z.string() })
+    }
   }
 };
 
