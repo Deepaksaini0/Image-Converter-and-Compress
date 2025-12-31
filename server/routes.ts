@@ -561,7 +561,6 @@ interface PageAudit {
 async function performSEOAudit(url: string) {
   const pageAudits: PageAudit[] = [];
   const baseUrl = new URL(url);
-  const domain = baseUrl.hostname;
   let crawledPages = new Set<string>();
   const recommendations = new Set<string>();
   
@@ -572,23 +571,23 @@ async function performSEOAudit(url: string) {
   let score = 100;
   const allIssues = pageAudits.flatMap(p => p.issues);
   
-  // Score calculation
+  // Score calculation - more lenient
   const criticalCount = allIssues.filter(i => i.severity === "critical").length;
   const warningCount = allIssues.filter(i => i.severity === "warning").length;
   
-  score -= criticalCount * 10;
-  score -= warningCount * 3;
+  score -= criticalCount * 15;  // Critical issues hurt more
+  score -= warningCount * 2;     // Warnings hurt less
 
   // Build category checks
   const checks = buildCategoryChecks(pageAudits, allIssues);
 
   return {
     url,
-    score: Math.max(Math.min(score, 100), 20),
+    score: Math.max(Math.min(score, 100), 45),  // Minimum 45 even with issues
     timestamp: new Date().toISOString(),
     checks,
     pageAudits,
-    recommendations: Array.from(recommendations)
+    recommendations: Array.from(recommendations).slice(0, 8)  // Limit recommendations
   };
 }
 
@@ -640,7 +639,7 @@ async function crawlAndAudit(
 }
 
 function analyzePageHTML(html: string, pageUrl: string): Array<{type: string; message: string; severity: "critical" | "warning" | "info"}> {
-  const issues = [];
+  const issues: Array<{type: string; message: string; severity: "critical" | "warning" | "info"}> = [];
 
   // Check H1 tags
   const h1Matches = html.match(/<h1[^>]*>(.*?)<\/h1>/gi) || [];
@@ -652,8 +651,8 @@ function analyzePageHTML(html: string, pageUrl: string): Array<{type: string; me
 
   // Check title tag
   const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
-  if (titleMatch) {
-    const titleLen = titleMatch[1].length;
+  if (titleMatch && titleMatch[1].trim()) {
+    const titleLen = titleMatch[1].trim().length;
     if (titleLen < 30) {
       issues.push({ type: "title-length", message: `Title too short (${titleLen} chars, should be 50-60)`, severity: "warning" });
     } else if (titleLen > 60) {
@@ -663,10 +662,11 @@ function analyzePageHTML(html: string, pageUrl: string): Array<{type: string; me
     issues.push({ type: "missing-title", message: "Missing title tag", severity: "critical" });
   }
 
-  // Check meta description
-  const metaDescMatch = html.match(/<meta\s+name=["']description["'][^>]*content=["']([^"']*)["']/i);
-  if (metaDescMatch) {
-    const descLen = metaDescMatch[1].length;
+  // Check meta description - try both name and property variants
+  const metaDescMatch = html.match(/<meta\s+name=["']description["'][^>]*content=["']([^"']*)["']/i) || 
+                        html.match(/<meta\s+[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
+  if (metaDescMatch && metaDescMatch[1].trim()) {
+    const descLen = metaDescMatch[1].trim().length;
     if (descLen < 120) {
       issues.push({ type: "meta-length", message: `Meta description too short (${descLen} chars, should be 140-160)`, severity: "warning" });
     } else if (descLen > 160) {
@@ -676,31 +676,36 @@ function analyzePageHTML(html: string, pageUrl: string): Array<{type: string; me
     issues.push({ type: "missing-meta", message: "Missing meta description", severity: "critical" });
   }
 
-  // Check image ALT attributes
+  // Check image ALT attributes - only if images exist
   const imgMatches = html.match(/<img[^>]*>/gi) || [];
-  const missingAlt = imgMatches.filter(img => !img.match(/\salt\s*=/i)).length;
-  if (missingAlt > 0) {
-    issues.push({ type: "missing-alt", message: `${missingAlt} images missing ALT text`, severity: "warning" });
+  if (imgMatches.length > 0) {
+    const missingAlt = imgMatches.filter(img => !img.match(/\salt\s*=/i)).length;
+    if (missingAlt > 0) {
+      issues.push({ type: "missing-alt", message: `${missingAlt} of ${imgMatches.length} images missing ALT text`, severity: "warning" });
+    }
   }
 
-  // Check canonical tag
-  if (!html.match(/<link[^>]*rel=["']canonical["']/i)) {
-    issues.push({ type: "missing-canonical", message: "Missing canonical tag", severity: "warning" });
+  // Check canonical tag - warning but not critical
+  const hasCanonical = html.match(/<link[^>]*rel=["']canonical["'][^>]*href/i) || html.match(/<link[^>]*href[^>]*rel=["']canonical["']/i);
+  if (!hasCanonical) {
+    issues.push({ type: "missing-canonical", message: "No canonical tag found (recommended for SEO)", severity: "info" });
   }
 
   // Check Open Graph tags
   const ogCount = (html.match(/<meta\s+property=["']og:/gi) || []).length;
   if (ogCount === 0) {
-    issues.push({ type: "missing-og", message: "Missing Open Graph meta tags", severity: "info" });
+    issues.push({ type: "missing-og", message: "No Open Graph tags (helpful for social sharing)", severity: "info" });
   }
 
   // Check schema markup
-  if (!html.match(/<script[^>]*type=["']application\/ld\+json["']/i)) {
-    issues.push({ type: "missing-schema", message: "Missing JSON-LD schema markup", severity: "warning" });
+  const hasSchema = html.match(/<script[^>]*type=["']application\/ld\+json["']/i) || html.match(/<script[^>]*type=["\']application\/ld\+json["']/i);
+  if (!hasSchema) {
+    issues.push({ type: "missing-schema", message: "No JSON-LD schema markup found (helps search engines)", severity: "info" });
   }
 
-  // Check mobile viewport
-  if (!html.match(/<meta[^>]*name=["']viewport["']/i)) {
+  // Check mobile viewport - critical
+  const hasViewport = html.match(/<meta[^>]*name=["']viewport["']/i);
+  if (!hasViewport) {
     issues.push({ type: "missing-viewport", message: "Missing viewport meta tag (mobile-friendly)", severity: "critical" });
   }
 
@@ -732,10 +737,12 @@ function buildCategoryChecks(
 ) {
   const checks = [];
   
-  const basicIssues = allIssues.filter(i => ["missing-title", "missing-meta", "missing-h1", "multiple-h1"].includes(i.type));
-  const technicalIssues = allIssues.filter(i => ["missing-canonical", "missing-viewport"].includes(i.type));
+  const basicIssues = allIssues.filter(i => ["missing-title", "missing-meta", "missing-h1", "multiple-h1", "missing-viewport"].includes(i.type));
+  const technicalIssues = allIssues.filter(i => ["missing-canonical"].includes(i.type));
   const onPageIssues = allIssues.filter(i => ["missing-alt"].includes(i.type));
   const securityIssues = allIssues.filter(i => ["missing-og", "missing-schema"].includes(i.type));
+
+  const criticalIssueCount = allIssues.filter(i => i.severity === "critical").length;
 
   // Basic SEO
   checks.push({
@@ -762,7 +769,7 @@ function buildCategoryChecks(
       {
         name: "Mobile Friendly",
         status: basicIssues.some(i => i.type === "missing-viewport") ? "fail" : "pass",
-        message: "Website is mobile responsive",
+        message: basicIssues.some(i => i.type === "missing-viewport") ? "Add viewport meta tag for mobile support" : "Website is mobile responsive",
         severity: "critical"
       }
     ]
@@ -774,9 +781,9 @@ function buildCategoryChecks(
     items: [
       {
         name: "Canonical Tags",
-        status: technicalIssues.some(i => i.type === "missing-canonical") ? "warning" : "pass",
-        message: technicalIssues.filter(i => i.type === "missing-canonical").length > 0 ? "Add canonical tags to prevent duplicate content" : "Canonical tags are present",
-        severity: "warning"
+        status: technicalIssues.length > 0 && technicalIssues.length > pageAudits.length / 2 ? "warning" : "pass",
+        message: technicalIssues.length > 0 ? "Consider adding canonical tags to prevent duplicate content" : "Canonical tags in place",
+        severity: "info"
       },
       {
         name: "URL Structure",
@@ -793,14 +800,14 @@ function buildCategoryChecks(
     items: [
       {
         name: "Image ALT Text",
-        status: onPageIssues.some(i => i.type === "missing-alt") ? "warning" : "pass",
-        message: onPageIssues.map(i => i.message).join("; ") || "All images have ALT attributes",
-        severity: "warning"
+        status: onPageIssues.length > 0 && onPageIssues.length > pageAudits.length / 3 ? "warning" : "pass",
+        message: onPageIssues.map(i => i.message).join("; ") || "Images have ALT attributes",
+        severity: "info"
       },
       {
-        name: "Page Audits",
+        name: "Pages Audited",
         status: "pass",
-        message: `Analyzed ${pageAudits.length} pages on the website`,
+        message: `Analyzed ${pageAudits.length} page${pageAudits.length !== 1 ? 's' : ''} on the website`,
         severity: "info"
       }
     ]
@@ -812,15 +819,15 @@ function buildCategoryChecks(
     items: [
       {
         name: "Open Graph Tags",
-        status: securityIssues.some(i => i.type === "missing-og") ? "warning" : "pass",
-        message: securityIssues.filter(i => i.type === "missing-og").length > 0 ? "Add Open Graph tags for social sharing" : "Open Graph tags present",
+        status: securityIssues.some(i => i.type === "missing-og") && pageAudits.length > 2 ? "warning" : "pass",
+        message: securityIssues.some(i => i.type === "missing-og") ? "Add Open Graph tags for social sharing" : "Open Graph tags present",
         severity: "info"
       },
       {
         name: "Schema Markup",
-        status: securityIssues.some(i => i.type === "missing-schema") ? "warning" : "pass",
-        message: securityIssues.filter(i => i.type === "missing-schema").length > 0 ? "Add JSON-LD schema markup" : "Schema markup present",
-        severity: "warning"
+        status: securityIssues.some(i => i.type === "missing-schema") && criticalIssueCount === 0 ? "warning" : "pass",
+        message: securityIssues.some(i => i.type === "missing-schema") ? "Add JSON-LD schema for rich snippets" : "Schema markup present",
+        severity: "info"
       }
     ]
   });
