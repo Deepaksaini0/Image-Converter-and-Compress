@@ -68,15 +68,7 @@ export const api = {
             severity: z.enum(['critical', 'warning', 'info'])
           }))
         })),
-        recommendations: z.array(z.string()),
-        pageAudits: z.array(z.object({
-          url: z.string(),
-          issues: z.array(z.object({
-            type: z.string(),
-            message: z.string(),
-            severity: z.enum(['critical', 'warning', 'info'])
-          }))
-        }))
+        recommendations: z.array(z.string())
       }),
       400: z.object({ message: z.string() }),
       500: z.object({ message: z.string() })
