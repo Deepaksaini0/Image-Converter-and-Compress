@@ -549,74 +549,281 @@ export async function registerRoutes(
   return httpServer;
 }
 
+interface PageAudit {
+  url: string;
+  issues: Array<{
+    type: string;
+    message: string;
+    severity: "critical" | "warning" | "info";
+  }>;
+}
+
 async function performSEOAudit(url: string) {
-  const checks = [];
-  const recommendations = [];
+  const pageAudits: PageAudit[] = [];
+  const baseUrl = new URL(url);
+  const domain = baseUrl.hostname;
+  let crawledPages = new Set<string>();
+  const recommendations = new Set<string>();
+  
+  // Fetch and audit main page + internal pages
+  await crawlAndAudit(url, baseUrl, crawledPages, pageAudits, recommendations);
+
+  // Aggregate results
   let score = 100;
+  const allIssues = pageAudits.flatMap(p => p.issues);
+  
+  // Score calculation
+  const criticalCount = allIssues.filter(i => i.severity === "critical").length;
+  const warningCount = allIssues.filter(i => i.severity === "warning").length;
+  
+  score -= criticalCount * 10;
+  score -= warningCount * 3;
 
-  // Basic SEO Checks
-  const basicChecks = [
-    { name: "HTTPS Enabled", status: "pass" as const, message: "Website uses HTTPS", severity: "critical" as const },
-    { name: "Title Tag", status: "pass" as const, message: "Title tag should be 50-60 characters", severity: "warning" as const },
-    { name: "Meta Description", status: "pass" as const, message: "Meta description should be 140-160 characters", severity: "warning" as const },
-    { name: "H1 Tag", status: "pass" as const, message: "Page should have exactly one H1 tag", severity: "critical" as const },
-    { name: "Mobile Friendly", status: "pass" as const, message: "Website appears mobile responsive", severity: "critical" as const }
-  ];
-  checks.push({ category: "Basic SEO", items: basicChecks });
-
-  // Technical SEO Checks
-  const technicalChecks = [
-    { name: "Canonical Tag", status: "warning" as const, message: "Add canonical tag to prevent duplicate content", severity: "warning" as const },
-    { name: "Robots.txt", status: "warning" as const, message: "robots.txt not found - consider adding one", severity: "info" as const },
-    { name: "Sitemap.xml", status: "warning" as const, message: "sitemap.xml not found - add for better crawlability", severity: "info" as const },
-    { name: "URL Structure", status: "pass" as const, message: "URL structure looks SEO-friendly", severity: "info" as const }
-  ];
-  checks.push({ category: "Technical SEO", items: technicalChecks });
-  score -= 10;
-
-  // On-Page SEO Checks
-  const onPageChecks = [
-    { name: "Image ALT Text", status: "warning" as const, message: "Add ALT attributes to all images", severity: "warning" as const },
-    { name: "Internal Linking", status: "warning" as const, message: "Ensure strong internal link structure", severity: "info" as const },
-    { name: "Content Quality", status: "pass" as const, message: "Content appears well-structured", severity: "info" as const }
-  ];
-  checks.push({ category: "On-Page SEO", items: onPageChecks });
-  score -= 8;
-
-  // Performance Checks
-  const performanceChecks = [
-    { name: "Page Load Speed", status: "warning" as const, message: "Test with Google PageSpeed Insights", severity: "warning" as const },
-    { name: "Image Optimization", status: "warning" as const, message: "Optimize images for web delivery", severity: "info" as const },
-    { name: "CSS/JS Minification", status: "warning" as const, message: "Minify CSS and JavaScript files", severity: "info" as const },
-    { name: "Core Web Vitals", status: "warning" as const, message: "Monitor LCP, CLS, and INP metrics", severity: "warning" as const }
-  ];
-  checks.push({ category: "Performance", items: performanceChecks });
-  score -= 15;
-
-  // Security & Trust Checks
-  const securityChecks = [
-    { name: "Open Graph Tags", status: "warning" as const, message: "Add Open Graph meta tags for social sharing", severity: "info" as const },
-    { name: "Schema Markup", status: "warning" as const, message: "Add structured data (JSON-LD schema)", severity: "warning" as const },
-    { name: "Security Headers", status: "pass" as const, message: "Website has proper security headers", severity: "critical" as const }
-  ];
-  checks.push({ category: "Security & Trust", items: securityChecks });
-  score -= 12;
-
-  // Recommendations
-  recommendations.push("Add or improve your Open Graph meta tags for better social media sharing");
-  recommendations.push("Implement JSON-LD schema markup for better search engine understanding");
-  recommendations.push("Create and submit a sitemap.xml to search engines");
-  recommendations.push("Create a robots.txt file to guide search engine crawlers");
-  recommendations.push("Optimize images and implement lazy loading for faster page loads");
-  recommendations.push("Add ALT text to all images for accessibility and SEO");
-  recommendations.push("Test Core Web Vitals using Google PageSpeed Insights");
-  recommendations.push("Ensure all internal links are working correctly (no 404 errors)");
+  // Build category checks
+  const checks = buildCategoryChecks(pageAudits, allIssues);
 
   return {
     url,
-    score: Math.max(score, 20),
+    score: Math.max(Math.min(score, 100), 20),
     timestamp: new Date().toISOString(),
     checks,
-    recommendations
+    pageAudits,
+    recommendations: Array.from(recommendations)
   };
+}
+
+async function crawlAndAudit(
+  pageUrl: string,
+  baseUrl: URL,
+  crawledPages: Set<string>,
+  pageAudits: PageAudit[],
+  recommendations: Set<string>,
+  depth = 0
+) {
+  if (depth > 2 || crawledPages.size > 10) return; // Limit crawl depth and pages
+  
+  const fullUrl = new URL(pageUrl, baseUrl).href;
+  if (crawledPages.has(fullUrl)) return;
+  crawledPages.add(fullUrl);
+
+  try {
+    const html = await fetchWithTimeout(fullUrl, 5000);
+    const issues = analyzePageHTML(html, fullUrl);
+    pageAudits.push({ url: fullUrl, issues });
+
+    // Add recommendations based on issues
+    issues.forEach(issue => {
+      if (issue.type === "missing-h1") recommendations.add("Add exactly one H1 tag to each page");
+      if (issue.type === "title-length") recommendations.add("Ensure title tags are 50-60 characters");
+      if (issue.type === "meta-length") recommendations.add("Meta descriptions should be 140-160 characters");
+      if (issue.type === "missing-alt") recommendations.add("Add ALT attributes to all images");
+      if (issue.type === "missing-canonical") recommendations.add("Add canonical tags to prevent duplicate content");
+      if (issue.type === "missing-og") recommendations.add("Add Open Graph meta tags for social sharing");
+      if (issue.type === "missing-schema") recommendations.add("Implement JSON-LD schema markup");
+    });
+
+    // Extract and crawl internal links
+    const linkRegex = /href=["']([^"']+)["']/g;
+    let match;
+    while ((match = linkRegex.exec(html)) && crawledPages.size < 10) {
+      const href = match[1];
+      if (!href.startsWith('http') && !href.startsWith('#') && href.startsWith('/')) {
+        await crawlAndAudit(href, baseUrl, crawledPages, pageAudits, recommendations, depth + 1);
+      }
+    }
+  } catch (error) {
+    pageAudits.push({
+      url: fullUrl,
+      issues: [{ type: "fetch-error", message: `Failed to fetch page: ${error instanceof Error ? error.message : 'Unknown error'}`, severity: "warning" }]
+    });
+  }
+}
+
+function analyzePageHTML(html: string, pageUrl: string): Array<{type: string; message: string; severity: "critical" | "warning" | "info"}> {
+  const issues = [];
+
+  // Check H1 tags
+  const h1Matches = html.match(/<h1[^>]*>(.*?)<\/h1>/gi) || [];
+  if (h1Matches.length === 0) {
+    issues.push({ type: "missing-h1", message: "Missing H1 tag on page", severity: "critical" });
+  } else if (h1Matches.length > 1) {
+    issues.push({ type: "multiple-h1", message: `Found ${h1Matches.length} H1 tags (should be 1)`, severity: "warning" });
+  }
+
+  // Check title tag
+  const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+  if (titleMatch) {
+    const titleLen = titleMatch[1].length;
+    if (titleLen < 30) {
+      issues.push({ type: "title-length", message: `Title too short (${titleLen} chars, should be 50-60)`, severity: "warning" });
+    } else if (titleLen > 60) {
+      issues.push({ type: "title-length", message: `Title too long (${titleLen} chars, should be 50-60)`, severity: "warning" });
+    }
+  } else {
+    issues.push({ type: "missing-title", message: "Missing title tag", severity: "critical" });
+  }
+
+  // Check meta description
+  const metaDescMatch = html.match(/<meta\s+name=["']description["'][^>]*content=["']([^"']*)["']/i);
+  if (metaDescMatch) {
+    const descLen = metaDescMatch[1].length;
+    if (descLen < 120) {
+      issues.push({ type: "meta-length", message: `Meta description too short (${descLen} chars, should be 140-160)`, severity: "warning" });
+    } else if (descLen > 160) {
+      issues.push({ type: "meta-length", message: `Meta description too long (${descLen} chars, should be 140-160)`, severity: "warning" });
+    }
+  } else {
+    issues.push({ type: "missing-meta", message: "Missing meta description", severity: "critical" });
+  }
+
+  // Check image ALT attributes
+  const imgMatches = html.match(/<img[^>]*>/gi) || [];
+  const missingAlt = imgMatches.filter(img => !img.match(/\salt\s*=/i)).length;
+  if (missingAlt > 0) {
+    issues.push({ type: "missing-alt", message: `${missingAlt} images missing ALT text`, severity: "warning" });
+  }
+
+  // Check canonical tag
+  if (!html.match(/<link[^>]*rel=["']canonical["']/i)) {
+    issues.push({ type: "missing-canonical", message: "Missing canonical tag", severity: "warning" });
+  }
+
+  // Check Open Graph tags
+  const ogCount = (html.match(/<meta\s+property=["']og:/gi) || []).length;
+  if (ogCount === 0) {
+    issues.push({ type: "missing-og", message: "Missing Open Graph meta tags", severity: "info" });
+  }
+
+  // Check schema markup
+  if (!html.match(/<script[^>]*type=["']application\/ld\+json["']/i)) {
+    issues.push({ type: "missing-schema", message: "Missing JSON-LD schema markup", severity: "warning" });
+  }
+
+  // Check mobile viewport
+  if (!html.match(/<meta[^>]*name=["']viewport["']/i)) {
+    issues.push({ type: "missing-viewport", message: "Missing viewport meta tag (mobile-friendly)", severity: "critical" });
+  }
+
+  return issues;
+}
+
+async function fetchWithTimeout(url: string, timeoutMs: number): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.text();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function buildCategoryChecks(
+  pageAudits: PageAudit[],
+  allIssues: Array<{type: string; message: string; severity: "critical" | "warning" | "info"}>
+) {
+  const checks = [];
+  
+  const basicIssues = allIssues.filter(i => ["missing-title", "missing-meta", "missing-h1", "multiple-h1"].includes(i.type));
+  const technicalIssues = allIssues.filter(i => ["missing-canonical", "missing-viewport"].includes(i.type));
+  const onPageIssues = allIssues.filter(i => ["missing-alt"].includes(i.type));
+  const securityIssues = allIssues.filter(i => ["missing-og", "missing-schema"].includes(i.type));
+
+  // Basic SEO
+  checks.push({
+    category: "Basic SEO",
+    items: [
+      {
+        name: "Title Tags",
+        status: basicIssues.some(i => i.type === "missing-title") ? "fail" : basicIssues.some(i => i.type === "title-length") ? "warning" : "pass",
+        message: basicIssues.filter(i => i.type.includes("title")).map(i => i.message).join("; ") || "All pages have proper title tags",
+        severity: basicIssues.some(i => i.type === "missing-title") ? "critical" : "info"
+      },
+      {
+        name: "Meta Descriptions",
+        status: basicIssues.some(i => i.type === "missing-meta") ? "fail" : basicIssues.some(i => i.type === "meta-length") ? "warning" : "pass",
+        message: basicIssues.filter(i => i.type.includes("meta")).map(i => i.message).join("; ") || "All pages have proper meta descriptions",
+        severity: basicIssues.some(i => i.type === "missing-meta") ? "critical" : "info"
+      },
+      {
+        name: "H1 Tags",
+        status: basicIssues.some(i => i.type === "missing-h1") ? "fail" : basicIssues.some(i => i.type === "multiple-h1") ? "warning" : "pass",
+        message: basicIssues.filter(i => i.type.includes("h1")).map(i => i.message).join("; ") || "All pages have single H1 tags",
+        severity: basicIssues.some(i => i.type === "missing-h1") ? "critical" : "info"
+      },
+      {
+        name: "Mobile Friendly",
+        status: basicIssues.some(i => i.type === "missing-viewport") ? "fail" : "pass",
+        message: "Website is mobile responsive",
+        severity: "critical"
+      }
+    ]
+  });
+
+  // Technical SEO
+  checks.push({
+    category: "Technical SEO",
+    items: [
+      {
+        name: "Canonical Tags",
+        status: technicalIssues.some(i => i.type === "missing-canonical") ? "warning" : "pass",
+        message: technicalIssues.filter(i => i.type === "missing-canonical").length > 0 ? "Add canonical tags to prevent duplicate content" : "Canonical tags are present",
+        severity: "warning"
+      },
+      {
+        name: "URL Structure",
+        status: "pass",
+        message: "URL structure appears SEO-friendly",
+        severity: "info"
+      }
+    ]
+  });
+
+  // On-Page SEO
+  checks.push({
+    category: "On-Page SEO",
+    items: [
+      {
+        name: "Image ALT Text",
+        status: onPageIssues.some(i => i.type === "missing-alt") ? "warning" : "pass",
+        message: onPageIssues.map(i => i.message).join("; ") || "All images have ALT attributes",
+        severity: "warning"
+      },
+      {
+        name: "Page Audits",
+        status: "pass",
+        message: `Analyzed ${pageAudits.length} pages on the website`,
+        severity: "info"
+      }
+    ]
+  });
+
+  // Security & Trust
+  checks.push({
+    category: "Security & Trust",
+    items: [
+      {
+        name: "Open Graph Tags",
+        status: securityIssues.some(i => i.type === "missing-og") ? "warning" : "pass",
+        message: securityIssues.filter(i => i.type === "missing-og").length > 0 ? "Add Open Graph tags for social sharing" : "Open Graph tags present",
+        severity: "info"
+      },
+      {
+        name: "Schema Markup",
+        status: securityIssues.some(i => i.type === "missing-schema") ? "warning" : "pass",
+        message: securityIssues.filter(i => i.type === "missing-schema").length > 0 ? "Add JSON-LD schema markup" : "Schema markup present",
+        severity: "warning"
+      }
+    ]
+  });
+
+  return checks;
 }

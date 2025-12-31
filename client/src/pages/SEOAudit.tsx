@@ -22,6 +22,14 @@ interface AuditResult {
     }[];
   }[];
   recommendations: string[];
+  pageAudits?: Array<{
+    url: string;
+    issues: Array<{
+      type: string;
+      message: string;
+      severity: "critical" | "warning" | "info";
+    }>;
+  }>;
 }
 
 export default function SEOAuditPage() {
@@ -190,6 +198,44 @@ export default function SEOAuditPage() {
                     <div key={idx} className="flex gap-3 text-sm">
                       <span className="text-blue-600 dark:text-blue-400 font-bold flex-shrink-0">{idx + 1}.</span>
                       <p className="text-gray-700 dark:text-gray-300">{rec}</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {/* Page Audits */}
+            {result.pageAudits && result.pageAudits.length > 0 && (
+              <Card className="p-6">
+                <h2 className="text-xl font-bold text-black dark:text-white mb-4">
+                  📄 Page-by-Page Analysis
+                </h2>
+                <div className="space-y-4">
+                  {result.pageAudits.map((pageAudit, pageIdx) => (
+                    <div key={pageIdx} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <p className="font-semibold text-black dark:text-white text-sm mb-3 break-all">
+                        {pageAudit.url}
+                      </p>
+                      {pageAudit.issues.length === 0 ? (
+                        <p className="text-sm text-green-600 dark:text-green-400">✓ No issues found</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {pageAudit.issues.map((issue, issueIdx) => (
+                            <div key={issueIdx} className="flex gap-2 text-sm">
+                              <span className={`flex-shrink-0 font-bold ${
+                                issue.severity === "critical"
+                                  ? "text-red-600 dark:text-red-400"
+                                  : issue.severity === "warning"
+                                  ? "text-yellow-600 dark:text-yellow-400"
+                                  : "text-blue-600 dark:text-blue-400"
+                              }`}>
+                                {issue.severity === "critical" ? "✕" : issue.severity === "warning" ? "!" : "ℹ"}
+                              </span>
+                              <p className="text-gray-700 dark:text-gray-300">{issue.message}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
