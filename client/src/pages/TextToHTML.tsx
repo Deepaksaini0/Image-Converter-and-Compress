@@ -29,6 +29,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { html as beautifyHtml } from "js-beautify";
 
 const MenuBar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
@@ -242,7 +243,13 @@ export default function TextToHTML() {
     ],
     content: '',
     onUpdate: ({ editor }) => {
-      setHtml(editor.getHTML());
+      const rawHtml = editor.getHTML();
+      const beautified = beautifyHtml(rawHtml, {
+        indent_size: 2,
+        wrap_line_length: 80,
+        preserve_newlines: true,
+      });
+      setHtml(beautified);
     },
     editorProps: {
       attributes: {
