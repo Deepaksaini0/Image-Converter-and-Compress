@@ -29,6 +29,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+// @ts-ignore
 import { html as beautifyHtml } from "js-beautify";
 
 const MenuBar = ({ editor }: { editor: any }) => {
