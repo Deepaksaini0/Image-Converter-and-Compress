@@ -1,15 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, ArrowLeft, RotateCcw, Download, Bold, Italic, Underline, List, ListOrdered, Link as LinkIcon } from "lucide-react";
+import { 
+  Copy, ArrowLeft, RotateCcw, Download, Bold, Italic, Underline, 
+  List, ListOrdered, Link as LinkIcon, AlignLeft, AlignCenter, 
+  AlignRight, AlignJustify, Type, Highlighter, Table as TableIcon,
+  Undo, Redo, ChevronDown, Image as ImageIcon
+} from "lucide-react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import UnderlineExtension from '@tiptap/extension-underline';
 import LinkExtension from '@tiptap/extension-link';
+import Color from '@tiptap/extension-color';
+import TextStyle from '@tiptap/extension-text-style';
+import Highlight from '@tiptap/extension-highlight';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableHeader from '@tiptap/extension-table-header';
+import TableCell from '@tiptap/extension-table-cell';
+import TextAlign from '@tiptap/extension-text-align';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
 const MenuBar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
@@ -21,57 +40,182 @@ const MenuBar = ({ editor }: { editor: any }) => {
     }
   };
 
+  const addTable = () => {
+    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+  };
+
   return (
-    <div className="flex flex-wrap gap-1 p-2 border-b bg-muted/50">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        className={editor.isActive('bold') ? 'bg-muted' : ''}
-      >
-        <Bold className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        className={editor.isActive('italic') ? 'bg-muted' : ''}
-      >
-        <Italic className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        className={editor.isActive('underline') ? 'bg-muted' : ''}
-      >
-        <Underline className="h-4 w-4" />
-      </Button>
-      <div className="w-px h-6 bg-border mx-1" />
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        className={editor.isActive('bulletList') ? 'bg-muted' : ''}
-      >
-        <List className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        className={editor.isActive('orderedList') ? 'bg-muted' : ''}
-      >
-        <ListOrdered className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={addLink}
-        className={editor.isActive('link') ? 'bg-muted' : ''}
-      >
-        <LinkIcon className="h-4 w-4" />
-      </Button>
+    <div className="flex flex-col border-b bg-muted/30">
+      {/* Top Menu Bar (File, Edit, etc) */}
+      <div className="flex gap-4 px-3 py-1 border-b text-sm text-muted-foreground bg-muted/20">
+        <DropdownMenu>
+          <DropdownMenuTrigger className="hover:text-foreground outline-none">File</DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => editor.commands.setContent('')}>New</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="hover:text-foreground outline-none">Edit</DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => editor.chain().focus().undo().run()}>Undo</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().redo().run()}>Redo</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="hover:text-foreground outline-none">Insert</DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={addLink}>Link</DropdownMenuItem>
+            <DropdownMenuItem onClick={addTable}>Table</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <span className="cursor-default">Format</span>
+        <span className="cursor-default">Table</span>
+        <span className="cursor-default">Tools</span>
+      </div>
+
+      {/* Main Toolbar */}
+      <div className="flex flex-wrap items-center gap-0.5 p-1.5">
+        <div className="flex items-center">
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().undo().run()} className="h-8 w-8 p-0">
+            <Undo className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().redo().run()} className="h-8 w-8 p-0">
+            <Redo className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        <div className="w-px h-6 bg-border mx-1" />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 px-2 flex items-center gap-1">
+              Formats <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setParagraph().run()}>Paragraph</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>Heading 1</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>Heading 2</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="w-px h-6 bg-border mx-1" />
+
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('bold') ? 'bg-muted' : ''}`}
+          >
+            <Bold className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('italic') ? 'bg-muted' : ''}`}
+          >
+            <Italic className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('underline') ? 'bg-muted' : ''}`}
+          >
+            <Underline className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="w-px h-6 bg-border mx-1" />
+
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().setTextAlign('left').run()}
+            className={`h-8 w-8 p-0 ${editor.isActive({ textAlign: 'left' }) ? 'bg-muted' : ''}`}
+          >
+            <AlignLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().setTextAlign('center').run()}
+            className={`h-8 w-8 p-0 ${editor.isActive({ textAlign: 'center' }) ? 'bg-muted' : ''}`}
+          >
+            <AlignCenter className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().setTextAlign('right').run()}
+            className={`h-8 w-8 p-0 ${editor.isActive({ textAlign: 'right' }) ? 'bg-muted' : ''}`}
+          >
+            <AlignRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+            className={`h-8 w-8 p-0 ${editor.isActive({ textAlign: 'justify' }) ? 'bg-muted' : ''}`}
+          >
+            <AlignJustify className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="w-px h-6 bg-border mx-1" />
+
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('bulletList') ? 'bg-muted' : ''}`}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('orderedList') ? 'bg-muted' : ''}`}
+          >
+            <ListOrdered className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="w-px h-6 bg-border mx-1" />
+
+        <div className="flex items-center">
+          <Button variant="ghost" size="sm" onClick={addLink} className={`h-8 w-8 p-0 ${editor.isActive('link') ? 'bg-muted' : ''}`}>
+            <LinkIcon className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+            <ImageIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().setColor('#ff0000').run()}
+            className="h-8 w-8 p-0"
+          >
+            <Type className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().toggleHighlight().run()}
+            className={`h-8 w-8 p-0 ${editor.isActive('highlight') ? 'bg-muted' : ''}`}
+          >
+            <Highlighter className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={addTable} className="h-8 w-8 p-0">
+            <TableIcon className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -84,9 +228,15 @@ export default function TextToHTML() {
     extensions: [
       StarterKit,
       UnderlineExtension,
-      LinkExtension.configure({
-        openOnClick: false,
-      }),
+      LinkExtension.configure({ openOnClick: false }),
+      Color,
+      TextStyle,
+      Highlight,
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
     content: '',
     onUpdate: ({ editor }) => {
@@ -94,7 +244,7 @@ export default function TextToHTML() {
     },
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert max-w-none p-4 min-h-[400px] focus:outline-none',
+        class: 'prose dark:prose-invert max-w-none p-4 min-h-[450px] focus:outline-none',
       },
     },
   });
@@ -102,10 +252,7 @@ export default function TextToHTML() {
   const copyToClipboard = () => {
     if (!html) return;
     navigator.clipboard.writeText(html);
-    toast({
-      title: "Copied!",
-      description: "HTML code has been copied to clipboard.",
-    });
+    toast({ title: "Copied!", description: "HTML code copied to clipboard." });
   };
 
   const downloadHTML = () => {
@@ -119,15 +266,9 @@ export default function TextToHTML() {
     URL.revokeObjectURL(url);
   };
 
-  const reset = () => {
-    editor?.commands.setContent('');
-    setHtml("");
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* Header */}
+      <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/">
@@ -139,74 +280,35 @@ export default function TextToHTML() {
               <h1 className="text-3xl font-display font-bold text-black dark:text-black">
                 Rich Text to HTML
               </h1>
-              <p className="text-muted-foreground">
-                Design with rich text and get clean HTML output
-              </p>
+              <p className="text-muted-foreground text-sm">Professional rich text editor with clean HTML output</p>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={reset}
-              disabled={!html || html === '<p></p>'}
-              className="hover-elevate"
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset
-            </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Editor Area */}
-          <Card className="flex flex-col h-[600px] overflow-hidden">
-            <CardHeader className="p-0 border-b">
-              <MenuBar editor={editor} />
-            </CardHeader>
-            <CardContent className="flex-1 p-0 overflow-y-auto">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <Card className="flex flex-col h-[700px] overflow-hidden shadow-sm border-border/60">
+            <MenuBar editor={editor} />
+            <CardContent className="flex-1 p-0 overflow-y-auto bg-white dark:bg-zinc-950">
               <EditorContent editor={editor} />
             </CardContent>
           </Card>
 
-          {/* Output Area */}
-          <Card className="flex flex-col h-[600px]">
-            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2 border-b">
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                HTML Output
-              </CardTitle>
+          <Card className="flex flex-col h-[700px] shadow-sm border-border/60">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 py-3 px-4 border-b bg-muted/10">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">HTML Output</CardTitle>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyToClipboard}
-                  disabled={!html || html === '<p></p>'}
-                  className="hover-elevate"
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy
+                <Button variant="outline" size="sm" onClick={copyToClipboard} disabled={!html || html === '<p></p>'} className="h-8">
+                  <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={downloadHTML}
-                  disabled={!html || html === '<p></p>'}
-                  className="hover-elevate"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
+                <Button variant="outline" size="sm" onClick={downloadHTML} disabled={!html || html === '<p></p>'} className="h-8">
+                  <Download className="h-3.5 w-3.5 mr-1.5" /> Download
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 p-0 bg-muted/30">
+            <CardContent className="flex-1 p-0 bg-muted/5">
               <ScrollArea className="h-full w-full">
-                <div className="p-4 font-mono text-sm break-all whitespace-pre-wrap">
-                  {html && html !== '<p></p>' ? (
-                    html
-                  ) : (
-                    <span className="text-muted-foreground italic">
-                      HTML output will appear here as you type...
-                    </span>
-                  )}
+                <div className="p-4 font-mono text-xs text-muted-foreground leading-relaxed break-all whitespace-pre-wrap">
+                  {html && html !== '<p></p>' ? html : <span className="italic opacity-50">Resulting HTML will appear here...</span>}
                 </div>
               </ScrollArea>
             </CardContent>
