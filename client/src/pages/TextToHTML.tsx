@@ -15,14 +15,14 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import UnderlineExtension from '@tiptap/extension-underline';
 import LinkExtension from '@tiptap/extension-link';
-import Color from '@tiptap/extension-color';
-import TextStyle from '@tiptap/extension-text-style';
-import Highlight from '@tiptap/extension-highlight';
-import Table from '@tiptap/extension-table';
-import TableRow from '@tiptap/extension-table-row';
-import TableHeader from '@tiptap/extension-table-header';
-import TableCell from '@tiptap/extension-table-cell';
-import TextAlign from '@tiptap/extension-text-align';
+import { Color } from '@tiptap/extension-color';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Highlight } from '@tiptap/extension-highlight';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TextAlign } from '@tiptap/extension-text-align';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -46,7 +46,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
 
   return (
     <div className="flex flex-col border-b bg-muted/30">
-      {/* Top Menu Bar (File, Edit, etc) */}
       <div className="flex gap-4 px-3 py-1 border-b text-sm text-muted-foreground bg-muted/20">
         <DropdownMenu>
           <DropdownMenuTrigger className="hover:text-foreground outline-none">File</DropdownMenuTrigger>
@@ -73,7 +72,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
         <span className="cursor-default">Tools</span>
       </div>
 
-      {/* Main Toolbar */}
       <div className="flex flex-wrap items-center gap-0.5 p-1.5">
         <div className="flex items-center">
           <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().undo().run()} className="h-8 w-8 p-0">
