@@ -222,6 +222,12 @@ export default function Home() {
                       <span className="hidden sm:inline">Text to HTML</span>
                     </Button>
                   </Link>
+                  <Link href="/web-tools">
+                    <Button variant="outline" className="flex items-center gap-2 hover-elevate" data-testid="button-web-tools-nav">
+                      <Code className="h-4 w-4" />
+                      <span className="hidden sm:inline">Web Tools</span>
+                    </Button>
+                  </Link>
                   <Link href="/faq">
                     <Button variant="outline" className="flex items-center gap-2 hover-elevate" data-testid="button-faq-nav">
                       <HelpCircle className="h-4 w-4" />

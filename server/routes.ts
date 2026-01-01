@@ -10,6 +10,10 @@ import path from "path";
 import { api } from "@shared/routes";
 import { conversionOptionsSchema, processRequestSchema, mergeRequestSchema, formats, documentConversionRequestSchema } from "@shared/schema";
 import { z } from "zod";
+import CleanCSS from "clean-css";
+import beautify from "js-beautify";
+import { minify as htmlMinify } from "html-minifier-terser";
+import { minify as jsMinify } from "terser";
 
 // pdf-parse - handle ESM import
 let pdfParse: any;
@@ -38,6 +42,46 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  app.post("/api/web-tools/process", async (req, res) => {
+    const { input, tool } = req.body;
+    if (!input) return res.status(400).json({ error: "Input is required" });
+
+    try {
+      let output = "";
+      switch (tool) {
+        case "css-minify":
+          output = new CleanCSS().minify(input).styles;
+          break;
+        case "css-beautify":
+          output = beautify.css(input, { indent_size: 2 });
+          break;
+        case "js-minify":
+          const minifiedJs = await jsMinify(input);
+          output = minifiedJs.code || "";
+          break;
+        case "js-beautify":
+          output = beautify.js(input, { indent_size: 2 });
+          break;
+        case "html-minify":
+          output = await htmlMinify(input, {
+            collapseWhitespace: true,
+            removeComments: true,
+            minifyCSS: true,
+            minifyJS: true,
+          });
+          break;
+        case "html-beautify":
+          output = beautify.html(input, { indent_size: 2 });
+          break;
+        default:
+          return res.status(400).json({ error: "Invalid tool" });
+      }
+      res.json({ output });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Load pdf-parse
   if (!pdfParse) {
     const pdfParseModule = await import("pdf-parse");

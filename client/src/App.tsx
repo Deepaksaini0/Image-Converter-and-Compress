@@ -8,6 +8,7 @@ import FAQPage from "@/pages/FAQ";
 import LLMPage from "@/pages/LLM";
 import SEOAuditPage from "@/pages/SEOAudit";
 import TextToHTMLPage from "@/pages/TextToHTML";
+import WebToolsPage from "@/pages/WebTools";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/llms" component={LLMPage} />
       <Route path="/seo-audit" component={SEOAuditPage} />
       <Route path="/text-to-html" component={TextToHTMLPage} />
+      <Route path="/web-tools" component={WebToolsPage} />
       <Route component={NotFound} />
     </Switch>
   );
