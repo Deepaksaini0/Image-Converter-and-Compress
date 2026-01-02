@@ -363,9 +363,9 @@ export default function TextToHTML() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 p-0 bg-muted/5">
+            <CardContent className="flex-1 p-0 bg-muted/5 min-h-0 overflow-hidden">
               <ScrollArea className="h-full w-full">
-                <div className="p-4 font-mono text-xs text-muted-foreground leading-relaxed break-all whitespace-pre-wrap overflow-x-auto max-w-full">
+                <div className="p-4 font-mono text-xs text-muted-foreground leading-relaxed break-words whitespace-pre-wrap overflow-x-hidden">
                   {html && html !== '<p></p>' ? html : <span className="italic opacity-50">Resulting HTML will appear here...</span>}
                 </div>
               </ScrollArea>
