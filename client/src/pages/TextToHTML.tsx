@@ -273,7 +273,14 @@ export default function TextToHTML() {
     content: '',
     onUpdate: ({ editor }) => {
       const rawHtml = editor.getHTML();
-      const beautified = beautifyHtml(rawHtml, {
+      // Further clean the output HTML
+      const cleanedHtml = rawHtml
+        .replace(/ style="[^"]*"/gi, '')
+        .replace(/ class="[^"]*"/gi, '')
+        .replace(/<span[^>]*>/gi, '')
+        .replace(/<\/span>/gi, '');
+
+      const beautified = beautifyHtml(cleanedHtml, {
         indent_size: 2,
         wrap_line_length: 80,
         preserve_newlines: true,
@@ -284,12 +291,16 @@ export default function TextToHTML() {
       attributes: {
         class: 'prose dark:prose-invert max-w-none p-4 min-h-[450px] focus:outline-none',
       },
+      transformPastedHTML: (html) => {
+        // Strip inline styles and other messy attributes from Word/Google Docs
+        return html
+          .replace(/style="[^"]*"/gi, '')
+          .replace(/class="[^"]*"/gi, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/<span[^>]*>/gi, '')
+          .replace(/<\/span>/gi, '');
+      },
       handlePaste: (view, event) => {
-        const text = event.clipboardData?.getData('text/plain');
-        if (text && text.includes('\n')) {
-          // Basic heuristic for clean paste
-          return false; // Let tiptap handle it but we've ensured starter-kit is configured
-        }
         return false;
       }
     },
