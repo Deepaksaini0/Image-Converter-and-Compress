@@ -279,6 +279,8 @@ export default function TextToHTML() {
         .replace(/ class="[^"]*"/gi, '')
         .replace(/<span[^>]*>/gi, '')
         .replace(/<\/span>/gi, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\u00A0/g, ' ')
         .replace(/<li><p>(.*?)<\/p><\/li>/gi, '<li>$1</li>');
 
       const beautified = beautifyHtml(cleanedHtml, {
@@ -299,7 +301,8 @@ export default function TextToHTML() {
           .replace(/class="[^"]*"/gi, '')
           .replace(/&nbsp;/g, ' ')
           .replace(/<span[^>]*>/gi, '')
-          .replace(/<\/span>/gi, '');
+          .replace(/<\/span>/gi, '')
+          .replace(/\u00A0/g, ' ');
       },
       handlePaste: (view, event) => {
         return false;
