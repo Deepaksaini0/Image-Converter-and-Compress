@@ -278,7 +278,8 @@ export default function TextToHTML() {
         .replace(/ style="[^"]*"/gi, '')
         .replace(/ class="[^"]*"/gi, '')
         .replace(/<span[^>]*>/gi, '')
-        .replace(/<\/span>/gi, '');
+        .replace(/<\/span>/gi, '')
+        .replace(/<li><p>(.*?)<\/p><\/li>/gi, '<li>$1</li>');
 
       const beautified = beautifyHtml(cleanedHtml, {
         indent_size: 2,
