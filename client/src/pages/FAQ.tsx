@@ -81,7 +81,7 @@ export default function FAQPage() {
   };
 
   const jsonldOutput = generateJSONLD();
-  const jsonldString = JSON.stringify(jsonldOutput, null, 2);
+  const jsonldString = JSON.stringify(jsonldOutput);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(jsonldString);
