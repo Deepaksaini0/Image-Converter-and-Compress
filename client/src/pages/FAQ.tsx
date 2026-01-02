@@ -300,9 +300,27 @@ export default function FAQPage() {
 
               {/* HTML Snippet */}
               <div className="pt-6 border-t border-gray-300 dark:border-gray-700">
-                <h3 className="text-lg font-bold text-black dark:text-white mb-2">
-                  HTML Snippet
-                </h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-bold text-black dark:text-white">
+                    HTML Snippet
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const snippet = `<script type="application/ld+json">\n${jsonldString}\n</script>`;
+                      navigator.clipboard.writeText(snippet);
+                      toast({
+                        title: "Copied!",
+                        description: "HTML snippet copied to clipboard"
+                      });
+                    }}
+                    className="h-8 px-2"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy HTML
+                  </Button>
+                </div>
                 <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-auto max-h-40">
                   <pre className="text-xs text-black dark:text-white font-mono whitespace-pre-wrap break-words">
 {`<script type="application/ld+json">
