@@ -286,7 +286,9 @@ export default function TextToHTML() {
       const beautified = beautifyHtml(cleanedHtml, {
         indent_size: 2,
         wrap_line_length: 80,
-        preserve_newlines: true,
+        preserve_newlines: false,
+        extra_liners: [],
+        unformatted: ['p', 'strong', 'em', 'span', 'li', 'a'],
       });
       setHtml(beautified);
     },
