@@ -87,6 +87,7 @@ export async function registerRoutes(
   // Load pdf-parse
   if (!pdfParse) {
     const pdfParseModule = await import("pdf-parse");
+    // @ts-ignore
     pdfParse = pdfParseModule.default || pdfParseModule;
   }
 
@@ -395,9 +396,9 @@ export async function registerRoutes(
 
         doc.end();
 
-        await new Promise((resolve, reject) => {
-          pdfStream.on('finish', resolve);
-          pdfStream.on('error', reject);
+        await new Promise<void>((resolve, reject) => {
+          pdfStream.on('finish', () => resolve());
+          pdfStream.on('error', (err) => reject(err));
         });
       } catch (pdfError) {
         console.error("PDF generation error:", pdfError);
@@ -484,9 +485,9 @@ export async function registerRoutes(
 
           doc.end();
 
-          await new Promise((resolve, reject) => {
-            pdfStream.on("finish", resolve);
-            pdfStream.on("error", reject);
+          await new Promise<void>((resolve, reject) => {
+            pdfStream.on("finish", () => resolve());
+            pdfStream.on("error", (err) => reject(err));
           });
         } catch (pdfError) {
           console.error("PDF generation error:", pdfError);
