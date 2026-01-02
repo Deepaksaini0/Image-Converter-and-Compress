@@ -14,6 +14,8 @@ import CleanCSS from "clean-css";
 import beautify from "js-beautify";
 import { minify as htmlMinify } from "html-minifier-terser";
 import { minify as jsMinify } from "terser";
+import axios from "axios";
+import * as cheerio from "cheerio";
 
 // pdf-parse - handle ESM import
 let pdfParse: any;
@@ -550,7 +552,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid URL format" });
       }
 
-      // Perform basic SEO audit
+      // Perform full website SEO audit
       const auditResult = await performSEOAudit(url);
       res.json(auditResult);
     } catch (error) {
@@ -593,74 +595,98 @@ export async function registerRoutes(
   return httpServer;
 }
 
-async function performSEOAudit(url: string) {
+async function performSEOAudit(baseUrl: string) {
+  const visited = new Set<string>();
+  const toVisit = [baseUrl];
+  const results: any[] = [];
+  const maxPages = 5;
+
+  const domain = new URL(baseUrl).hostname;
+
+  while (toVisit.length > 0 && visited.size < maxPages) {
+    const url = toVisit.shift()!;
+    if (visited.has(url)) continue;
+    visited.add(url);
+
+    try {
+      const response = await axios.get(url, { timeout: 5000 });
+      const $ = cheerio.load(response.data);
+      
+      const pageResults = auditPage(url, $);
+      results.push(pageResults);
+
+      $('a[href]').each((_, el) => {
+        const href = $(el).attr('href');
+        if (!href) return;
+        try {
+          const absoluteUrl = new URL(href, url).href;
+          const absoluteUrlObj = new URL(absoluteUrl);
+          if (absoluteUrlObj.hostname === domain && !visited.has(absoluteUrl)) {
+            toVisit.push(absoluteUrl);
+          }
+        } catch {}
+      });
+    } catch (error) {
+      console.error(`Error auditing ${url}:`, error);
+    }
+  }
+
+  const avgScore = results.length > 0 
+    ? Math.round(results.reduce((sum, r) => sum + r.score, 0) / results.length)
+    : 0;
+
+  return {
+    url: baseUrl,
+    score: avgScore,
+    timestamp: new Date().toISOString(),
+    pages: results,
+    recommendations: results[0]?.recommendations || []
+  };
+}
+
+function auditPage(url: string, $: cheerio.CheerioAPI) {
   const checks = [];
-  const recommendations = [];
   let score = 100;
 
-  // Basic SEO Checks
-  const basicChecks = [
-    { name: "HTTPS Enabled", status: "pass" as const, message: "Website uses HTTPS", severity: "critical" as const },
-    { name: "Title Tag", status: "pass" as const, message: "Title tag should be 50-60 characters", severity: "warning" as const },
-    { name: "Meta Description", status: "pass" as const, message: "Meta description should be 140-160 characters", severity: "warning" as const },
-    { name: "H1 Tag", status: "pass" as const, message: "Page should have exactly one H1 tag", severity: "critical" as const },
-    { name: "Mobile Friendly", status: "pass" as const, message: "Website appears mobile responsive", severity: "critical" as const }
+  const basicItems = [
+    {
+      name: "Title Tag",
+      status: ($('title').length > 0 && $('title').text().trim().length > 0) ? "pass" : "fail",
+      message: $('title').text().trim().length > 0 ? `Title: ${$('title').text().slice(0, 50)}...` : "Missing title tag",
+      severity: "critical"
+    },
+    {
+      name: "Meta Description",
+      status: $('meta[name="description"]').attr('content') ? "pass" : "warning",
+      message: $('meta[name="description"]').attr('content') ? "Meta description found" : "Missing meta description",
+      severity: "warning"
+    },
+    {
+      name: "H1 Tag",
+      status: $('h1').length === 1 ? "pass" : "warning",
+      message: `Found ${$('h1').length} H1 tags`,
+      severity: "critical"
+    }
   ];
-  checks.push({ category: "Basic SEO", items: basicChecks });
+  
+  basicItems.forEach(item => { if (item.status !== "pass") score -= 10; });
+  checks.push({ category: "Basic SEO", items: basicItems });
 
-  // Technical SEO Checks
-  const technicalChecks = [
-    { name: "Canonical Tag", status: "warning" as const, message: "Add canonical tag to prevent duplicate content", severity: "warning" as const },
-    { name: "Robots.txt", status: "warning" as const, message: "robots.txt not found - consider adding one", severity: "info" as const },
-    { name: "Sitemap.xml", status: "warning" as const, message: "sitemap.xml not found - add for better crawlability", severity: "info" as const },
-    { name: "URL Structure", status: "pass" as const, message: "URL structure looks SEO-friendly", severity: "info" as const }
+  const techItems = [
+    {
+      name: "Image ALT Text",
+      status: $('img:not([alt])').length === 0 ? "pass" : "warning",
+      message: `Found ${$('img:not([alt])').length} images without alt text`,
+      severity: "warning"
+    }
   ];
-  checks.push({ category: "Technical SEO", items: technicalChecks });
-  score -= 10;
-
-  // On-Page SEO Checks
-  const onPageChecks = [
-    { name: "Image ALT Text", status: "warning" as const, message: "Add ALT attributes to all images", severity: "warning" as const },
-    { name: "Internal Linking", status: "warning" as const, message: "Ensure strong internal link structure", severity: "info" as const },
-    { name: "Content Quality", status: "pass" as const, message: "Content appears well-structured", severity: "info" as const }
-  ];
-  checks.push({ category: "On-Page SEO", items: onPageChecks });
-  score -= 8;
-
-  // Performance Checks
-  const performanceChecks = [
-    { name: "Page Load Speed", status: "warning" as const, message: "Test with Google PageSpeed Insights", severity: "warning" as const },
-    { name: "Image Optimization", status: "warning" as const, message: "Optimize images for web delivery", severity: "info" as const },
-    { name: "CSS/JS Minification", status: "warning" as const, message: "Minify CSS and JavaScript files", severity: "info" as const },
-    { name: "Core Web Vitals", status: "warning" as const, message: "Monitor LCP, CLS, and INP metrics", severity: "warning" as const }
-  ];
-  checks.push({ category: "Performance", items: performanceChecks });
-  score -= 15;
-
-  // Security & Trust Checks
-  const securityChecks = [
-    { name: "Open Graph Tags", status: "warning" as const, message: "Add Open Graph meta tags for social sharing", severity: "info" as const },
-    { name: "Schema Markup", status: "warning" as const, message: "Add structured data (JSON-LD schema)", severity: "warning" as const },
-    { name: "Security Headers", status: "pass" as const, message: "Website has proper security headers", severity: "critical" as const }
-  ];
-  checks.push({ category: "Security & Trust", items: securityChecks });
-  score -= 12;
-
-  // Recommendations
-  recommendations.push("Add or improve your Open Graph meta tags for better social media sharing");
-  recommendations.push("Implement JSON-LD schema markup for better search engine understanding");
-  recommendations.push("Create and submit a sitemap.xml to search engines");
-  recommendations.push("Create a robots.txt file to guide search engine crawlers");
-  recommendations.push("Optimize images and implement lazy loading for faster page loads");
-  recommendations.push("Add ALT text to all images for accessibility and SEO");
-  recommendations.push("Test Core Web Vitals using Google PageSpeed Insights");
-  recommendations.push("Ensure all internal links are working correctly (no 404 errors)");
+  techItems.forEach(item => { if (item.status !== "pass") score -= 5; });
+  checks.push({ category: "Technical SEO", items: techItems });
 
   return {
     url,
-    score: Math.max(score, 20),
-    timestamp: new Date().toISOString(),
+    score: Math.max(0, score),
     checks,
-    recommendations
+    recommendations: basicItems.filter(i => i.status !== "pass").map(i => i.message)
   };
 }

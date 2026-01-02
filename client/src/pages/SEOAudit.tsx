@@ -7,11 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { ArrowLeft, CheckCircle, AlertCircle, Loader } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-interface AuditResult {
+interface PageAudit {
   url: string;
   score: number;
-  timestamp: string;
   checks: {
     category: string;
     items: {
@@ -21,6 +21,14 @@ interface AuditResult {
       severity: "critical" | "warning" | "info";
     }[];
   }[];
+  recommendations: string[];
+}
+
+interface AuditResult {
+  url: string;
+  score: number;
+  timestamp: string;
+  pages: PageAudit[];
   recommendations: string[];
 }
 
@@ -56,7 +64,7 @@ export default function SEOAuditPage() {
       setResult(data);
       toast({
         title: "Audit Complete",
-        description: `SEO Score: ${data.score}/100`
+        description: `Website SEO Score: ${data.score}/100`
       });
     } catch (error) {
       toast({
@@ -84,7 +92,6 @@ export default function SEOAuditPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Link href="/">
             <Button variant="ghost" size="icon" className="hover-elevate">
@@ -96,7 +103,7 @@ export default function SEOAuditPage() {
               SEO Audit Platform
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Comprehensive website SEO analysis & optimization recommendations
+              Multi-page website analysis & optimization recommendations
             </p>
           </div>
         </div>
@@ -140,14 +147,15 @@ export default function SEOAuditPage() {
               </div>
 
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">What We Check</h3>
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Full Website Audit</h3>
+                <p className="text-sm text-blue-800 dark:text-blue-200 mb-4">
+                  We'll crawl up to 5 internal pages and provide a detailed report for each.
+                </p>
                 <div className="grid grid-cols-2 gap-2 text-sm text-blue-800 dark:text-blue-200">
-                  <div>✓ Basic SEO (titles, descriptions, headings)</div>
-                  <div>✓ Technical SEO (HTTPS, structure, redirects)</div>
-                  <div>✓ On-Page SEO (images, links, content)</div>
-                  <div>✓ Performance (load speed, assets)</div>
-                  <div>✓ Security & Trust (schema, OG tags)</div>
-                  <div>✓ Mobile Friendliness</div>
+                  <div>✓ Title Tag & Meta Data</div>
+                  <div>✓ H1 Tag Verification</div>
+                  <div>✓ Image ALT Text Check</div>
+                  <div>✓ Multi-page Crawling</div>
                 </div>
               </div>
             </Card>
@@ -159,11 +167,10 @@ export default function SEOAuditPage() {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            {/* Score Card */}
             <Card className={`p-8 ${getScoreBg(result.score)}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">SEO SCORE</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">OVERALL SEO SCORE</p>
                   <p className={`text-5xl font-bold ${getScoreColor(result.score)}`}>
                     {result.score}
                     <span className="text-2xl">/100</span>
@@ -179,77 +186,63 @@ export default function SEOAuditPage() {
               </div>
             </Card>
 
-            {/* Recommendations */}
-            {result.recommendations.length > 0 && (
-              <Card className="p-6">
-                <h2 className="text-xl font-bold text-black dark:text-white mb-4">
-                  📋 Top Recommendations
-                </h2>
-                <div className="space-y-2">
-                  {result.recommendations.slice(0, 5).map((rec, idx) => (
-                    <div key={idx} className="flex gap-3 text-sm">
-                      <span className="text-blue-600 dark:text-blue-400 font-bold flex-shrink-0">{idx + 1}.</span>
-                      <p className="text-gray-700 dark:text-gray-300">{rec}</p>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-
-            {/* Detailed Results */}
             <div className="space-y-4">
-              {result.checks.map((category, catIdx) => (
-                <Card key={catIdx} className="p-6">
-                  <h3 className="text-lg font-bold text-black dark:text-white mb-4">
-                    {category.category}
-                  </h3>
-                  <div className="space-y-3">
-                    {category.items.map((item, itemIdx) => (
-                      <div key={itemIdx} className="flex items-start gap-3 pb-3 border-b border-gray-200 dark:border-gray-700 last:border-b-0 last:pb-0">
-                        <div className="flex-shrink-0 mt-0.5">
-                          {item.status === "pass" ? (
-                            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                          ) : (
-                            <AlertCircle className={`h-5 w-5 ${
-                              item.severity === "critical"
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-yellow-600 dark:text-yellow-400"
-                            }`} />
-                          )}
+              <h2 className="text-2xl font-bold text-black dark:text-white px-2">Page-by-Page Audit</h2>
+              <Accordion type="single" collapsible className="w-full space-y-4">
+                {result.pages.map((page, idx) => (
+                  <AccordionItem key={idx} value={`page-${idx}`} className="border-none">
+                    <Card className="overflow-hidden">
+                      <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                        <div className="flex items-center justify-between w-full pr-4">
+                          <div className="text-left">
+                            <p className="text-sm font-medium text-blue-600 dark:text-blue-400 truncate max-w-md">{page.url}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Page {idx + 1}</p>
+                          </div>
+                          <div className={`text-xl font-bold ${getScoreColor(page.score)}`}>
+                            {page.score}%
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-black dark:text-white text-sm">
-                            {item.name}
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            {item.message}
-                          </p>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6 pb-6 pt-2">
+                        <div className="space-y-6">
+                          {page.checks.map((category, catIdx) => (
+                            <div key={catIdx} className="space-y-3">
+                              <h4 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">{category.category}</h4>
+                              <div className="grid gap-3">
+                                {category.items.map((item, itemIdx) => (
+                                  <div key={itemIdx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                                    <div className="mt-0.5">
+                                      {item.status === "pass" ? (
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                      ) : (
+                                        <AlertCircle className={`h-4 w-4 ${item.severity === "critical" ? "text-red-600" : "text-yellow-600"}`} />
+                                      )}
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-sm font-semibold">{item.name}</p>
+                                      <p className="text-xs text-muted-foreground mt-0.5">{item.message}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              ))}
+                      </AccordionContent>
+                    </Card>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             </div>
 
-            {/* Actions */}
             <div className="flex gap-3">
-              <Button
-                onClick={() => setResult(null)}
-                variant="outline"
-                className="flex-1"
-                data-testid="button-new-audit"
-              >
-                New Audit
-              </Button>
+              <Button onClick={() => setResult(null)} variant="outline" className="flex-1">New Audit</Button>
               <Button
                 onClick={() => {
                   const csvContent = generateCSV(result);
                   downloadCSV(csvContent, result.url);
                 }}
-                variant="default"
                 className="flex-1"
-                data-testid="button-download-report"
               >
                 Download Report
               </Button>
@@ -262,22 +255,19 @@ export default function SEOAuditPage() {
 }
 
 function generateCSV(result: AuditResult): string {
-  let csv = `SEO Audit Report\n`;
-  csv += `Website: ${result.url}\n`;
-  csv += `Date: ${new Date(result.timestamp).toLocaleString()}\n`;
-  csv += `Score: ${result.score}/100\n\n`;
+  let csv = `Full Website SEO Audit Report\n`;
+  csv += `Root URL: ${result.url}\n`;
+  csv += `Average Score: ${result.score}/100\n\n`;
 
-  csv += `RECOMMENDATIONS\n`;
-  result.recommendations.forEach((rec, idx) => {
-    csv += `${idx + 1},"${rec}"\n`;
-  });
-
-  csv += `\nDETAILED RESULTS\n`;
-  result.checks.forEach(category => {
-    csv += `\n${category.category}\n`;
-    category.items.forEach(item => {
-      csv += `"${item.name}","${item.status.toUpperCase()}","${item.message}"\n`;
+  result.pages.forEach((page, idx) => {
+    csv += `PAGE ${idx + 1}: ${page.url}\n`;
+    csv += `Page Score: ${page.score}/100\n`;
+    page.checks.forEach(cat => {
+      cat.items.forEach(item => {
+        csv += `"${cat.category}","${item.name}","${item.status.toUpperCase()}","${item.message}"\n`;
+      });
     });
+    csv += `\n`;
   });
 
   return csv;
@@ -287,8 +277,6 @@ function downloadCSV(csv: string, domain: string) {
   const element = document.createElement("a");
   const file = new Blob([csv], { type: "text/csv" });
   element.href = URL.createObjectURL(file);
-  element.download = `seo-audit-${domain.replace(/\//g, '')}-${Date.now()}.csv`;
-  document.body.appendChild(element);
+  element.download = `full-seo-audit-${domain.replace(/[^\w]/g, '-')}.csv`;
   element.click();
-  document.body.removeChild(element);
 }
