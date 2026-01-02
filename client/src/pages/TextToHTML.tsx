@@ -32,8 +32,17 @@ import {
 // @ts-ignore
 import { html as beautifyHtml } from "js-beautify";
 
+import Image from '@tiptap/extension-image';
+
 const MenuBar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
+
+  const addImage = () => {
+    const url = window.prompt('Image URL');
+    if (url) {
+      editor.chain().focus().setImage({ src: url }).run();
+    }
+  };
 
   const addLink = () => {
     const url = window.prompt('URL');
@@ -196,7 +205,7 @@ const MenuBar = ({ editor }: { editor: any }) => {
           <Button variant="ghost" size="sm" onClick={addLink} className={`h-8 w-8 p-0 ${editor.isActive('link') ? 'bg-muted' : ''}`}>
             <LinkIcon className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+          <Button variant="ghost" size="sm" onClick={addImage} className="h-8 w-8 p-0">
             <ImageIcon className="h-4 w-4" />
           </Button>
           <Button
@@ -230,17 +239,36 @@ export default function TextToHTML() {
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        bulletList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+        orderedList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+      }),
       UnderlineExtension,
-      LinkExtension.configure({ openOnClick: false }),
+      LinkExtension.configure({ 
+        openOnClick: false,
+        HTMLAttributes: {
+          rel: 'noopener noreferrer',
+          target: '_blank',
+        },
+      }),
       Color,
       TextStyle,
       Highlight,
-      Table.configure({ resizable: true }),
+      Table.configure({ 
+        resizable: true,
+        allowTableNodeSelection: true,
+      }),
       TableRow,
       TableHeader,
       TableCell,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Image,
     ],
     content: '',
     onUpdate: ({ editor }) => {
@@ -256,6 +284,14 @@ export default function TextToHTML() {
       attributes: {
         class: 'prose dark:prose-invert max-w-none p-4 min-h-[450px] focus:outline-none',
       },
+      handlePaste: (view, event) => {
+        const text = event.clipboardData?.getData('text/plain');
+        if (text && text.includes('\n')) {
+          // Basic heuristic for clean paste
+          return false; // Let tiptap handle it but we've ensured starter-kit is configured
+        }
+        return false;
+      }
     },
   });
 
@@ -317,7 +353,7 @@ export default function TextToHTML() {
             </CardHeader>
             <CardContent className="flex-1 p-0 bg-muted/5">
               <ScrollArea className="h-full w-full">
-                <div className="p-4 font-mono text-xs text-muted-foreground leading-relaxed break-all whitespace-pre-wrap">
+                <div className="p-4 font-mono text-xs text-muted-foreground leading-relaxed break-all whitespace-pre-wrap overflow-x-auto max-w-full">
                   {html && html !== '<p></p>' ? html : <span className="italic opacity-50">Resulting HTML will appear here...</span>}
                 </div>
               </ScrollArea>
