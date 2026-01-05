@@ -313,6 +313,8 @@ export default function TextToHTML() {
       // Note: We are explicitly avoiding stripping 'class' attribute here
       const cleanedHtml = rawHtml
         .replace(/ style="[^"]*"/gi, '')
+        .replace(/<span(?! class=")[^>]*>/gi, '') // Only strip spans WITHOUT classes
+        .replace(/<\/span>/gi, '</span>') // Keep span closing tags if needed, or refine
         .replace(/&nbsp;/g, ' ')
         .replace(/\u00A0/g, ' ')
         .replace(/<li><p>(.*?)<\/p><\/li>/gi, '<li>$1</li>');
@@ -322,7 +324,7 @@ export default function TextToHTML() {
         wrap_line_length: 80,
         preserve_newlines: false,
         extra_liners: [],
-        unformatted: ['strong', 'em', 'span', 'a'],
+        unformatted: ['strong', 'em', 'a'], // Removed 'span' from unformatted to allow proper cleaning if needed
       });
       setHtml(beautified);
     },
@@ -388,7 +390,6 @@ export default function TextToHTML() {
               <h1 className="text-3xl font-display font-bold text-black dark:text-black">
                 Rich Text to HTML
               </h1>
-              <p className="text-muted-foreground text-sm">Professional rich text editor with clean HTML output</p>
             </div>
           </div>
           <Button 
