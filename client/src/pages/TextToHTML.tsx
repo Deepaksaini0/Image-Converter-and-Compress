@@ -290,7 +290,7 @@ export default function TextToHTML() {
       // Further clean the output HTML
       const cleanedHtml = rawHtml
         .replace(/ style="[^"]*"/gi, '')
-        // Removed the line that strips classes
+        // Preserving classes by not stripping them here
         .replace(/<span[^>]*>/gi, '')
         .replace(/<\/span>/gi, '')
         .replace(/&nbsp;/g, ' ')
@@ -302,7 +302,7 @@ export default function TextToHTML() {
         wrap_line_length: 80,
         preserve_newlines: false,
         extra_liners: [],
-        unformatted: ['p', 'strong', 'em', 'span', 'li', 'a'],
+        unformatted: ['strong', 'em', 'span', 'a'],
       });
       setHtml(beautified);
     },
