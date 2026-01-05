@@ -58,9 +58,15 @@ const MenuBar = ({ editor }: { editor: any }) => {
   const addClass = () => {
     const className = window.prompt('Enter class name (e.g., custom-title, my-list)');
     if (className && editor) {
-      editor.chain().focus().updateAttributes(editor.state.selection.$from.parent.type, {
-        class: className
-      }).run();
+      if (!editor.state.selection.empty) {
+        // Selection is not empty, apply to selection (marks)
+        editor.chain().focus().setMark('textStyle', { class: className }).run();
+      } else {
+        // Apply to current block
+        editor.chain().focus().updateAttributes(editor.state.selection.$from.parent.type, {
+          class: className
+        }).run();
+      }
     }
   };
 
@@ -307,8 +313,6 @@ export default function TextToHTML() {
       // Note: We are explicitly avoiding stripping 'class' attribute here
       const cleanedHtml = rawHtml
         .replace(/ style="[^"]*"/gi, '')
-        .replace(/<span[^>]*>/gi, '')
-        .replace(/<\/span>/gi, '')
         .replace(/&nbsp;/g, ' ')
         .replace(/\u00A0/g, ' ')
         .replace(/<li><p>(.*?)<\/p><\/li>/gi, '<li>$1</li>');
