@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { ArrowLeft, Plus, Trash2, Copy, Download } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Copy, Download, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface FAQItem {
@@ -106,24 +106,47 @@ export default function FAQPage() {
     });
   };
 
+  const resetForm = () => {
+    setFaqItems([]);
+    setWebsiteName("My Website");
+    setWebsiteUrl("https://example.com");
+    setCurrentQuestion("");
+    setCurrentAnswer("");
+    toast({
+      title: "Reset Complete",
+      description: "All fields have been cleared."
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/">
-            <Button variant="ghost" size="icon" className="hover-elevate">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-4xl font-bold text-black dark:text-white">
-              FAQ JSON-LD Schema Generator
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Create structured data for better SEO and rich search results
-            </p>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Link href="/">
+              <Button variant="ghost" size="icon" className="hover-elevate">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-4xl font-bold text-black dark:text-white">
+                FAQ JSON-LD Schema Generator
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
+                Create structured data for better SEO and rich search results
+              </p>
+            </div>
           </div>
+          <Button 
+            variant="outline" 
+            onClick={resetForm}
+            className="hover-elevate"
+            data-testid="button-reset-faq"
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Reset
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
