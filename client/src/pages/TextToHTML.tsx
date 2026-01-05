@@ -57,9 +57,8 @@ const MenuBar = ({ editor }: { editor: any }) => {
 
   const addClass = () => {
     const className = window.prompt('Enter class name (e.g., custom-title, my-list)');
-    if (className) {
-      const { from, to } = editor.state.selection;
-      editor.chain().focus().setNodeMarkup(editor.state.selection.$from.parent.type, {
+    if (className && editor) {
+      editor.chain().focus().updateAttributes(editor.state.selection.$from.parent.type, {
         class: className
       }).run();
     }
