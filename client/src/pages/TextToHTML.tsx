@@ -310,11 +310,12 @@ export default function TextToHTML() {
     onUpdate: ({ editor }) => {
       const rawHtml = editor.getHTML();
       // Further clean the output HTML
-      // Note: We are explicitly avoiding stripping 'class' attribute here
-      const cleanedHtml = rawHtml
+      // We want to transform <p><span class="test">text</span></p> into <p class="test">text</p>
+      // if the span is the only child of the paragraph.
+      let cleanedHtml = rawHtml
         .replace(/ style="[^"]*"/gi, '')
+        .replace(/<p>\s*<span class="([^"]*)">(.*?)<\/span>\s*<\/p>/gi, '<p class="$1">$2</p>')
         .replace(/<span(?! class=")[^>]*>/gi, '') // Only strip spans WITHOUT classes
-        .replace(/<\/span>/gi, '</span>') // Keep span closing tags if needed, or refine
         .replace(/&nbsp;/g, ' ')
         .replace(/\u00A0/g, ' ')
         .replace(/<li><p>(.*?)<\/p><\/li>/gi, '<li>$1</li>');
@@ -324,7 +325,7 @@ export default function TextToHTML() {
         wrap_line_length: 80,
         preserve_newlines: false,
         extra_liners: [],
-        unformatted: ['strong', 'em', 'a'], // Removed 'span' from unformatted to allow proper cleaning if needed
+        unformatted: ['strong', 'em', 'a'],
       });
       setHtml(beautified);
     },
