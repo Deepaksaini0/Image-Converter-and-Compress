@@ -310,13 +310,11 @@ export default function TextToHTML() {
         class: 'prose dark:prose-invert max-w-none p-4 min-h-[450px] focus:outline-none',
       },
       transformPastedHTML: (html) => {
-        // Strip inline styles and other messy attributes from Word/Google Docs
+        // Strip inline styles but preserve tags
         return html
-          .replace(/style="[^"]*"/gi, '')
-          .replace(/class="[^"]*"/gi, '')
+          .replace(/ style="[^"]*"/gi, '')
+          .replace(/ class="[^"]*"/gi, '')
           .replace(/&nbsp;/g, ' ')
-          .replace(/<span[^>]*>/gi, '')
-          .replace(/<\/span>/gi, '')
           .replace(/\u00A0/g, ' ');
       },
       handlePaste: (view, event) => {
