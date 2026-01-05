@@ -363,6 +363,17 @@ export default function TextToHTML() {
     URL.revokeObjectURL(url);
   };
 
+  const resetEditor = () => {
+    if (editor) {
+      editor.commands.setContent('');
+      setHtml('');
+      toast({
+        title: "Reset Complete",
+        description: "Editor and output have been cleared."
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -380,6 +391,14 @@ export default function TextToHTML() {
               <p className="text-muted-foreground text-sm">Professional rich text editor with clean HTML output</p>
             </div>
           </div>
+          <Button 
+            variant="outline" 
+            onClick={resetEditor}
+            className="hover-elevate"
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Reset
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
