@@ -257,10 +257,26 @@ export default function TextToHTML() {
         bulletList: {
           keepMarks: true,
           keepAttributes: false,
+          HTMLAttributes: {
+            class: null,
+          },
         },
         orderedList: {
           keepMarks: true,
           keepAttributes: false,
+          HTMLAttributes: {
+            class: null,
+          },
+        },
+        paragraph: {
+          HTMLAttributes: {
+            class: null,
+          },
+        },
+        heading: {
+          HTMLAttributes: {
+            class: null,
+          },
         },
       }),
       UnderlineExtension,
@@ -288,9 +304,9 @@ export default function TextToHTML() {
     onUpdate: ({ editor }) => {
       const rawHtml = editor.getHTML();
       // Further clean the output HTML
+      // Note: We are explicitly avoiding stripping 'class' attribute here
       const cleanedHtml = rawHtml
         .replace(/ style="[^"]*"/gi, '')
-        // Preserving classes by not stripping them here
         .replace(/<span[^>]*>/gi, '')
         .replace(/<\/span>/gi, '')
         .replace(/&nbsp;/g, ' ')
