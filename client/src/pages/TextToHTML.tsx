@@ -294,11 +294,12 @@ export default function TextToHTML() {
         .replace(/<span(?! class=")[^>]*>/gi, '') // Only strip spans WITHOUT classes
         .replace(/&nbsp;/g, ' ')
         .replace(/\u00A0/g, ' ')
-        .replace(/<li><p>(.*?)<\/p><\/li>/gi, '<li>$1</li>');
+        .replace(/<li><p>(.*?)<\/p><\/li>/gi, '<li>$1</li>')
+        .replace(/<\/ul>\s*<ul>/gi, ''); // Merge adjacent ULs
 
       const beautified = beautifyHtml(cleanedHtml, {
         indent_size: 2,
-        wrap_line_length: 0, // Set to 0 to prevent line wrapping/cutting
+        wrap_line_length: 0,
         preserve_newlines: true,
         extra_liners: [],
         unformatted: ['strong', 'em', 'a'],
