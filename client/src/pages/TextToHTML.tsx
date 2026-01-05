@@ -55,21 +55,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
     editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
   };
 
-  const addClass = () => {
-    const className = window.prompt('Enter class name (e.g., custom-title, my-list)');
-    if (className && editor) {
-      if (!editor.state.selection.empty) {
-        // Selection is not empty, apply to selection (marks)
-        editor.chain().focus().setMark('textStyle', { class: className }).run();
-      } else {
-        // Apply to current block
-        editor.chain().focus().updateAttributes(editor.state.selection.$from.parent.type, {
-          class: className
-        }).run();
-      }
-    }
-  };
-
   return (
     <div className="flex flex-col border-b bg-muted/30">
       <div className="flex gap-4 px-3 py-1 border-b text-sm text-muted-foreground bg-muted/20">
@@ -91,12 +76,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
           <DropdownMenuContent>
             <DropdownMenuItem onClick={addLink}>Link</DropdownMenuItem>
             <DropdownMenuItem onClick={addTable}>Table</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <DropdownMenu>
-          <DropdownMenuTrigger className="hover:text-foreground outline-none">Format</DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={addClass}>Add Class to Block</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <span className="cursor-default">Table</span>
@@ -310,11 +289,8 @@ export default function TextToHTML() {
     onUpdate: ({ editor }) => {
       const rawHtml = editor.getHTML();
       // Further clean the output HTML
-      // We want to transform <p><span class="test">text</span></p> into <p class="test">text</p>
-      // if the span is the only child of the paragraph.
       let cleanedHtml = rawHtml
         .replace(/ style="[^"]*"/gi, '')
-        .replace(/<p>\s*<span class="([^"]*)">(.*?)<\/span>\s*<\/p>/gi, '<p class="$1">$2</p>')
         .replace(/<span(?! class=")[^>]*>/gi, '') // Only strip spans WITHOUT classes
         .replace(/&nbsp;/g, ' ')
         .replace(/\u00A0/g, ' ')
