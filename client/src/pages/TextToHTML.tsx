@@ -298,8 +298,8 @@ export default function TextToHTML() {
 
       const beautified = beautifyHtml(cleanedHtml, {
         indent_size: 2,
-        wrap_line_length: 80,
-        preserve_newlines: false,
+        wrap_line_length: 0, // Set to 0 to prevent line wrapping/cutting
+        preserve_newlines: true,
         extra_liners: [],
         unformatted: ['strong', 'em', 'a'],
       });
@@ -379,15 +379,15 @@ export default function TextToHTML() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <Card className="flex flex-col h-[700px] overflow-hidden shadow-sm border-border/60">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+          <Card className="flex flex-col min-h-[600px] overflow-hidden shadow-sm border-border/60">
             <MenuBar editor={editor} />
             <CardContent className="flex-1 p-0 overflow-y-auto bg-white dark:bg-zinc-950">
               <EditorContent editor={editor} />
             </CardContent>
           </Card>
 
-          <Card className="flex flex-col h-[700px] shadow-sm border-border/60">
+          <Card className="flex flex-col min-h-[600px] shadow-sm border-border/60">
             <CardHeader className="flex flex-row items-center justify-between gap-1 py-3 px-4 border-b bg-muted/10">
               <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">HTML Output</CardTitle>
               <div className="flex gap-2">
@@ -399,13 +399,13 @@ export default function TextToHTML() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 p-0 bg-muted/5 min-h-0 overflow-hidden">
+            <CardContent className="flex-1 p-0 bg-muted/5 min-h-0">
               <ScrollArea className="h-full w-full">
                 <textarea
                   value={html && html !== '<p></p>' ? html : ""}
                   onChange={(e) => setHtml(e.target.value)}
                   placeholder="Resulting HTML will appear here..."
-                  className="w-full h-full p-4 font-mono text-base text-black bg-transparent border-0 focus:ring-0 resize-none leading-relaxed"
+                  className="w-full min-h-[500px] p-4 font-mono text-base text-black bg-transparent border-0 focus:ring-0 resize-none leading-relaxed overflow-y-visible"
                   spellCheck={false}
                 />
               </ScrollArea>
