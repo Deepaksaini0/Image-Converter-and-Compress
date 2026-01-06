@@ -13,6 +13,7 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import CharacterCount from '@tiptap/extension-character-count';
 import UnderlineExtension from '@tiptap/extension-underline';
 import LinkExtension from '@tiptap/extension-link';
 import { Color } from '@tiptap/extension-color';
@@ -250,6 +251,7 @@ export default function TextToHTML() {
         },
       }),
       UnderlineExtension,
+      CharacterCount,
       LinkExtension.configure({ 
         openOnClick: false,
         HTMLAttributes: {
@@ -373,6 +375,9 @@ export default function TextToHTML() {
             <CardContent className="flex-1 p-0 overflow-y-auto bg-white dark:bg-zinc-950">
               <EditorContent editor={editor} />
             </CardContent>
+            <div className="px-4 py-2 border-t bg-muted/5 text-xs text-muted-foreground flex justify-between items-center">
+              <span>Words: {editor?.storage.characterCount?.words() || 0}</span>
+            </div>
           </Card>
 
           <Card className="flex flex-col h-[700px] shadow-sm border-border/60">
@@ -396,6 +401,9 @@ export default function TextToHTML() {
                 spellCheck={false}
               />
             </CardContent>
+            <div className="px-4 py-2 border-t bg-muted/5 text-xs text-muted-foreground flex justify-between items-center">
+              <span>Characters: {html?.length || 0}</span>
+            </div>
           </Card>
         </div>
       </div>
