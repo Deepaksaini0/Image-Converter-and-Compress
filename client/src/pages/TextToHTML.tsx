@@ -294,7 +294,7 @@ export default function TextToHTML() {
     },
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert max-w-none p-4 min-h-[450px] focus:outline-none',
+        class: 'prose dark:prose-invert max-w-none p-4 min-h-[450px] focus:outline-none text-lg',
       },
       transformPastedHTML: (html) => {
         // Strip inline styles and other messy attributes from Word/Google Docs
