@@ -387,16 +387,14 @@ export default function TextToHTML() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 p-0 bg-muted/5 min-h-0 overflow-hidden">
-              <ScrollArea className="h-full w-full">
-                <textarea
-                  value={html && html !== '<p></p>' ? html : ""}
-                  onChange={(e) => setHtml(e.target.value)}
-                  placeholder="Resulting HTML will appear here..."
-                  className="w-full h-full p-4 font-mono text-lg text-black bg-transparent border-0 focus:ring-0 resize-none leading-relaxed"
-                  spellCheck={false}
-                />
-              </ScrollArea>
+            <CardContent className="flex-1 p-0 bg-muted/5 min-h-0 flex flex-col">
+              <textarea
+                value={html && html !== '<p></p>' ? html : ""}
+                onChange={(e) => setHtml(e.target.value)}
+                placeholder="Resulting HTML will appear here..."
+                className="flex-1 w-full p-4 font-mono text-lg text-black bg-transparent border-0 focus:ring-0 resize-none leading-relaxed"
+                spellCheck={false}
+              />
             </CardContent>
           </Card>
         </div>
