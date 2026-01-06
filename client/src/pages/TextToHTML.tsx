@@ -78,6 +78,7 @@ const MenuBar = ({ editor }: { editor: any }) => {
             <DropdownMenuItem onClick={addTable}>Table</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <span className="cursor-default">Format</span>
         <span className="cursor-default">Table</span>
         <span className="cursor-default">Tools</span>
       </div>
@@ -242,26 +243,10 @@ export default function TextToHTML() {
         bulletList: {
           keepMarks: true,
           keepAttributes: false,
-          HTMLAttributes: {
-            class: null,
-          },
         },
         orderedList: {
           keepMarks: true,
           keepAttributes: false,
-          HTMLAttributes: {
-            class: null,
-          },
-        },
-        paragraph: {
-          HTMLAttributes: {
-            class: null,
-          },
-        },
-        heading: {
-          HTMLAttributes: {
-            class: null,
-          },
         },
       }),
       UnderlineExtension,
@@ -289,20 +274,21 @@ export default function TextToHTML() {
     onUpdate: ({ editor }) => {
       const rawHtml = editor.getHTML();
       // Further clean the output HTML
-      let cleanedHtml = rawHtml
+      const cleanedHtml = rawHtml
         .replace(/ style="[^"]*"/gi, '')
-        .replace(/<span(?! class=")[^>]*>/gi, '') // Only strip spans WITHOUT classes
+        .replace(/ class="[^"]*"/gi, '')
+        .replace(/<span[^>]*>/gi, '')
+        .replace(/<\/span>/gi, '')
         .replace(/&nbsp;/g, ' ')
         .replace(/\u00A0/g, ' ')
-        .replace(/<li><p>(.*?)<\/p><\/li>/gi, '<li>$1</li>')
-        .replace(/<\/ul>\s*<ul>/gi, ''); // Merge adjacent ULs
+        .replace(/<li><p>(.*?)<\/p><\/li>/gi, '<li>$1</li>');
 
       const beautified = beautifyHtml(cleanedHtml, {
         indent_size: 2,
-        wrap_line_length: 0,
-        preserve_newlines: true,
+        wrap_line_length: 80,
+        preserve_newlines: false,
         extra_liners: [],
-        unformatted: ['strong', 'em', 'a'],
+        unformatted: ['p', 'strong', 'em', 'span', 'li', 'a'],
       });
       setHtml(beautified);
     },
@@ -311,11 +297,13 @@ export default function TextToHTML() {
         class: 'prose dark:prose-invert max-w-none p-4 min-h-[450px] focus:outline-none',
       },
       transformPastedHTML: (html) => {
-        // Strip inline styles but preserve tags
+        // Strip inline styles and other messy attributes from Word/Google Docs
         return html
-          .replace(/ style="[^"]*"/gi, '')
-          .replace(/ class="[^"]*"/gi, '')
+          .replace(/style="[^"]*"/gi, '')
+          .replace(/class="[^"]*"/gi, '')
           .replace(/&nbsp;/g, ' ')
+          .replace(/<span[^>]*>/gi, '')
+          .replace(/<\/span>/gi, '')
           .replace(/\u00A0/g, ' ');
       },
       handlePaste: (view, event) => {
@@ -341,17 +329,6 @@ export default function TextToHTML() {
     URL.revokeObjectURL(url);
   };
 
-  const resetEditor = () => {
-    if (editor) {
-      editor.commands.setContent('');
-      setHtml('');
-      toast({
-        title: "Reset Complete",
-        description: "Editor and output have been cleared."
-      });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -366,27 +343,20 @@ export default function TextToHTML() {
               <h1 className="text-3xl font-display font-bold text-black dark:text-black">
                 Rich Text to HTML
               </h1>
+              <p className="text-muted-foreground text-sm">Professional rich text editor with clean HTML output</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={resetEditor}
-            className="hover-elevate"
-          >
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Reset
-          </Button>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-          <Card className="flex flex-col min-h-[600px] overflow-hidden shadow-sm border-border/60">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <Card className="flex flex-col h-[700px] overflow-hidden shadow-sm border-border/60">
             <MenuBar editor={editor} />
             <CardContent className="flex-1 p-0 overflow-y-auto bg-white dark:bg-zinc-950">
               <EditorContent editor={editor} />
             </CardContent>
           </Card>
 
-          <Card className="flex flex-col min-h-[600px] shadow-sm border-border/60">
+          <Card className="flex flex-col h-[700px] shadow-sm border-border/60">
             <CardHeader className="flex flex-row items-center justify-between gap-1 py-3 px-4 border-b bg-muted/10">
               <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">HTML Output</CardTitle>
               <div className="flex gap-2">
@@ -398,15 +368,11 @@ export default function TextToHTML() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 p-0 bg-muted/5 min-h-0">
+            <CardContent className="flex-1 p-0 bg-muted/5 min-h-0 overflow-hidden">
               <ScrollArea className="h-full w-full">
-                <textarea
-                  value={html && html !== '<p></p>' ? html : ""}
-                  onChange={(e) => setHtml(e.target.value)}
-                  placeholder="Resulting HTML will appear here..."
-                  className="w-full min-h-[500px] p-4 font-mono text-base text-black bg-transparent border-0 focus:ring-0 resize-none leading-relaxed overflow-y-visible"
-                  spellCheck={false}
-                />
+                <div className="p-4 font-mono text-xs text-muted-foreground leading-relaxed break-words whitespace-pre-wrap overflow-x-hidden">
+                  {html && html !== '<p></p>' ? html : <span className="italic opacity-50">Resulting HTML will appear here...</span>}
+                </div>
               </ScrollArea>
             </CardContent>
           </Card>
