@@ -329,6 +329,17 @@ export default function TextToHTML() {
     URL.revokeObjectURL(url);
   };
 
+  const resetEditor = () => {
+    if (editor) {
+      editor.commands.setContent('');
+      setHtml('');
+      toast({
+        title: "Reset Complete",
+        description: "Editor and output have been cleared."
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -346,6 +357,14 @@ export default function TextToHTML() {
               <p className="text-muted-foreground text-sm">Professional rich text editor with clean HTML output</p>
             </div>
           </div>
+          <Button 
+            variant="outline" 
+            onClick={resetEditor}
+            className="hover-elevate"
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Reset
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -370,9 +389,13 @@ export default function TextToHTML() {
             </CardHeader>
             <CardContent className="flex-1 p-0 bg-muted/5 min-h-0 overflow-hidden">
               <ScrollArea className="h-full w-full">
-                <div className="p-4 font-mono text-xs text-muted-foreground leading-relaxed break-words whitespace-pre-wrap overflow-x-hidden">
-                  {html && html !== '<p></p>' ? html : <span className="italic opacity-50">Resulting HTML will appear here...</span>}
-                </div>
+                <textarea
+                  value={html && html !== '<p></p>' ? html : ""}
+                  onChange={(e) => setHtml(e.target.value)}
+                  placeholder="Resulting HTML will appear here..."
+                  className="w-full h-full p-4 font-mono text-lg text-black bg-transparent border-0 focus:ring-0 resize-none leading-relaxed"
+                  spellCheck={false}
+                />
               </ScrollArea>
             </CardContent>
           </Card>
