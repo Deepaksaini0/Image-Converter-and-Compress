@@ -203,7 +203,7 @@ export default function Home() {
                 <ImageIcon className="h-6 w-6 text-white" />
               </div>
               <h1 className="text-2xl font-display font-bold text-black dark:text-black">
-                Image Convert / Compress
+                {mode === "convert" ? "Image Convert / Compress" : mode === "merge" ? "Merge Image" : "Convert PDF"}
               </h1>
             </div>
             
