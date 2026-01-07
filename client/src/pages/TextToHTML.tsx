@@ -335,6 +335,14 @@ export default function TextToHTML() {
     }
   };
 
+  const handleHtmlChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setHtml(value);
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value, false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -388,7 +396,7 @@ export default function TextToHTML() {
             <CardContent className="flex-1 p-0 bg-muted/5 min-h-0 flex flex-col">
               <textarea
                 value={html && html !== '<p></p>' ? html : ""}
-                onChange={(e) => setHtml(e.target.value)}
+                onChange={handleHtmlChange}
                 placeholder="Resulting HTML will appear here..."
                 className="flex-1 w-full p-4 font-mono text-lg text-black bg-transparent border-0 focus:ring-0 resize-none leading-relaxed"
                 spellCheck={false}
