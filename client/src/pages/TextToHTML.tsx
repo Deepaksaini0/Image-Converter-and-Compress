@@ -284,12 +284,11 @@ export default function TextToHTML() {
 
       const beautified = beautifyHtml(cleanedHtml, {
         indent_size: 2,
-        wrap_line_length: 80,
-        preserve_newlines: true,
-        max_preserve_newlines: 2,
+        wrap_line_length: 0, // Disable line wrapping to keep tags on single lines
+        preserve_newlines: false, // Don't preserve extra newlines
         indent_inner_html: true,
-        extra_liners: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'table', 'blockquote'],
-        unformatted: ['strong', 'em', 'span', 'a', 'u', 'b', 'i'],
+        extra_liners: [], // Remove extra empty lines around elements
+        unformatted: ['p', 'strong', 'em', 'span', 'a', 'u', 'b', 'i', 'li'], // Keep these tags on one line
       });
       setHtml(beautified);
     },
