@@ -276,7 +276,13 @@ export default function TextToHTML() {
     onUpdate: ({ editor }) => {
       const rawHtml = editor.getHTML();
       
-      const beautified = beautifyHtml(rawHtml, {
+      // Clean up the HTML structure specifically for lists and paragraphs
+      const cleanedHtml = rawHtml
+        .replace(/<li><p>(.*?)<\/p><\/li>/gi, '<li>$1</li>')
+        .replace(/<\/ul>\s*<ul>/gi, '') // Merge adjacent lists
+        .replace(/<\/ol>\s*<ol>/gi, '');
+
+      const beautified = beautifyHtml(cleanedHtml, {
         indent_size: 2,
         wrap_line_length: 80,
         preserve_newlines: true,
@@ -339,7 +345,7 @@ export default function TextToHTML() {
     const value = e.target.value;
     setHtml(value);
     if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value, false);
+      editor.commands.setContent(value, { emitUpdate: true });
     }
   };
 
