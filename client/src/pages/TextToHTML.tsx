@@ -275,22 +275,15 @@ export default function TextToHTML() {
     content: '',
     onUpdate: ({ editor }) => {
       const rawHtml = editor.getHTML();
-      // Further clean the output HTML
-      const cleanedHtml = rawHtml
-        .replace(/ style="[^"]*"/gi, '')
-        .replace(/ class="[^"]*"/gi, '')
-        .replace(/<span[^>]*>/gi, '')
-        .replace(/<\/span>/gi, '')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/\u00A0/g, ' ')
-        .replace(/<li><p>(.*?)<\/p><\/li>/gi, '<li>$1</li>');
-
-      const beautified = beautifyHtml(cleanedHtml, {
+      
+      const beautified = beautifyHtml(rawHtml, {
         indent_size: 2,
         wrap_line_length: 80,
-        preserve_newlines: false,
-        extra_liners: [],
-        unformatted: ['p', 'strong', 'em', 'span', 'li', 'a'],
+        preserve_newlines: true,
+        max_preserve_newlines: 2,
+        indent_inner_html: true,
+        extra_liners: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'table', 'blockquote'],
+        unformatted: ['strong', 'em', 'span', 'a', 'u', 'b', 'i'],
       });
       setHtml(beautified);
     },
