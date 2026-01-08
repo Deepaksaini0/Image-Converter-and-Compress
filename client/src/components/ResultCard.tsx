@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Download, ArrowRight, CheckCircle2 } from "lucide-react";
 import bytes from "bytes";
 import { motion } from "framer-motion";
+import { ShareButton } from "./ShareButton";
 
 interface ResultCardProps {
   result: ProcessedResult;
@@ -27,7 +28,8 @@ export function ResultCard({ result, index }: ResultCardProps) {
             alt={result.filename}
             className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105" 
           />
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-3 right-3 flex gap-2">
+            <ShareButton url={result.url} title={`Check out this image I processed: ${result.filename}`} />
             {isReduction ? (
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30 backdrop-blur-md">
                 -{percentSaved}%
