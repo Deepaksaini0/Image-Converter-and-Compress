@@ -44,20 +44,22 @@ export function PageReviews({ pagePath }: PageReviewsProps) {
     : 0;
 
   return (
-    <div className="space-y-6 mt-12 border-t pt-8 pb-12">
-      <div className="flex items-center gap-4 py-4">
-        <span className="text-muted-foreground font-medium">Rate this tool</span>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map((s) => (
-            <Star
-              key={s}
-              className={`w-6 h-6 ${s <= Math.round(averageRating) ? "fill-[#d1d5db] text-[#d1d5db]" : "text-[#d1d5db]"}`}
-            />
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5 text-sm">
-          <span className="font-bold text-base">{averageRating.toFixed(1)}</span>
-          <span className="text-muted-foreground">/ 5 - {reviews.length} votes</span>
+    <div className="space-y-6 mt-12 pt-8 pb-12">
+      <div className="flex flex-col items-center justify-center gap-2 py-8 border-y border-dashed bg-muted/5">
+        <div className="flex items-center gap-4">
+          <span className="text-muted-foreground font-medium whitespace-nowrap">Rate this tool</span>
+          <div className="flex gap-0.5">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Star
+                key={s}
+                className={`w-5 h-5 ${s <= Math.round(averageRating) ? "fill-yellow-400 text-yellow-400" : "fill-[#d1d5db] text-[#d1d5db]"}`}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+            <span className="font-bold text-base">{averageRating.toFixed(1)}</span>
+            <span className="text-muted-foreground">/ 5 - {reviews.length} votes</span>
+          </div>
         </div>
       </div>
 

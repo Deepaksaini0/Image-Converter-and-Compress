@@ -28,7 +28,7 @@ function Router() {
       </Switch>
       
       {location !== "/not-found" && (
-        <div className="container mx-auto px-4 max-w-4xl">
+        <div className="container mx-auto px-4 max-w-4xl py-12">
           <PageReviews pagePath={location} />
         </div>
       )}
