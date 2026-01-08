@@ -1,5 +1,5 @@
-// We don't need persistent storage for this stateless tool,
-// but we'll keep the interface standard.
+// server/storage.ts
+
 import { reviews, type Review, type InsertReview } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -11,12 +11,34 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getReviews(pagePath: string): Promise<Review[]> {
-    return await db.select().from(reviews).where(eq(reviews.pagePath, pagePath));
+    return await db
+      .select()
+      .from(reviews)
+      .where(eq(reviews.pagePath, pagePath));
   }
 
   async createReview(insertReview: InsertReview): Promise<Review> {
-    const [review] = await db.insert(reviews).values(insertReview).returning();
-    return review;
+    try {
+      const [review] = await db
+        .insert(reviews)
+        .values({
+          pagePath: insertReview.pagePath,
+          rating: insertReview.rating,
+
+          // 🔥 FIX: empty string → null
+          comment: insertReview.comment?.trim() || null,
+
+          // 🔥 FIX: empty name → Anonymous
+          userName: insertReview.userName?.trim() || "Anonymous",
+        })
+        .returning();
+
+      return review;
+    } catch (error) {
+      // 🔴 CRITICAL: log real DB error
+      console.error("❌ Create review failed:", error);
+      throw error;
+    }
   }
 }
 
