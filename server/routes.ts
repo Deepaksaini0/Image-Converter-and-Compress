@@ -45,6 +45,48 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  
+  /* =====================================================
+     ⭐ REVIEWS API (FIXES "Unable to submit review")
+  ====================================================== */
+
+  app.get("/api/reviews", async (req, res) => {
+    try {
+      const pagePath = req.query.pagePath as string;
+
+      if (!pagePath) {
+        return res.status(400).json({ message: "pagePath is required" });
+      }
+
+      const reviews = await storage.getReviews(pagePath);
+      res.json(reviews);
+    } catch (err) {
+      console.error("GET /api/reviews error:", err);
+      res.status(500).json({ message: "Failed to load reviews" });
+    }
+  });
+
+  app.post("/api/reviews", async (req, res) => {
+    try {
+      const { pagePath, rating, comment, userName } = req.body;
+
+      if (!pagePath || !rating) {
+        return res.status(400).json({ message: "Invalid review data" });
+      }
+
+      const review = await storage.createReview({
+        pagePath,
+        rating,
+        comment,
+        userName
+      });
+
+      res.json(review);
+    } catch (err) {
+      console.error("POST /api/reviews error:", err);
+      res.status(500).json({ message: "Unable to submit review" });
+    }
+  });
   app.post("/api/web-tools/process", async (req, res) => {
     const { input, tool } = req.body;
     if (!input) return res.status(400).json({ error: "Input is required" });
