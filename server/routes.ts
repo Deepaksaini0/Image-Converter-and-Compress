@@ -16,6 +16,7 @@ import { minify as htmlMinify } from "html-minifier-terser";
 import { minify as jsMinify } from "terser";
 import axios from "axios";
 import * as cheerio from "cheerio";
+import { storage } from "./storage";
 
 // pdf-parse - handle ESM import
 let pdfParse: any;
