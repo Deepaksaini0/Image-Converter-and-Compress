@@ -91,6 +91,24 @@ export const mergeResponseSchema = z.object({
 
 export type MergeResponse = z.infer<typeof mergeResponseSchema>;
 
+// Reviews table
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  pagePath: text("page_path").notNull(),
+  rating: integer("rating").notNull(),
+  comment: text("comment"),
+  userName: text("user_name").default("Anonymous"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertReviewSchema = createInsertSchema(reviews).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Review = typeof reviews.$inferSelect;
+export type InsertReview = z.infer<typeof insertReviewSchema>;
+
 // Document formats
 export const documentInputFormats = ["xlsx", "xls", "csv", "ods", "docx", "pdf"] as const;
 export const documentOutputFormats = ["pdf", "xlsx", "csv", "docx"] as const;
