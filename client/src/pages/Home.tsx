@@ -13,6 +13,7 @@ import { ArrowLeft, Download, RotateCcw, Image as ImageIcon, FileText, HelpCircl
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { ShareButton } from "@/components/ShareButton";
 
 export default function Home() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -397,10 +398,10 @@ export default function Home() {
                       </div>
 
                       {/* Download Buttons */}
-                      <div className="mt-6 space-y-3">
+                      <div className="mt-6 flex gap-3">
                         <Button 
                           asChild 
-                          className="w-full" 
+                          className="flex-1" 
                           size="lg"
                           data-testid="button-download-merged"
                         >
@@ -409,12 +410,15 @@ export default function Home() {
                             Download as {mergedResult.filename.split('.').pop()?.toUpperCase()}
                           </a>
                         </Button>
-                        
-                        {mergedResult.pdfUrl && (
+                        <ShareButton url={mergedResult.url} title="Check out this image I merged!" />
+                      </div>
+                      
+                      {mergedResult.pdfUrl && (
+                        <div className="mt-3 flex gap-3">
                           <Button 
                             asChild 
                             variant="outline"
-                            className="w-full" 
+                            className="flex-1" 
                             size="lg"
                             data-testid="button-download-pdf"
                           >
@@ -423,8 +427,9 @@ export default function Home() {
                               Download as PDF
                             </a>
                           </Button>
-                        )}
-                      </div>
+                          <ShareButton url={mergedResult.pdfUrl} title="Check out this PDF I created!" />
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : documentResult ? (
@@ -474,10 +479,10 @@ export default function Home() {
                       </div>
 
                       {/* Download Button */}
-                      <div className="mt-6">
+                      <div className="mt-6 flex gap-3">
                         <Button 
                           asChild 
-                          className="w-full" 
+                          className="flex-1" 
                           size="lg"
                           data-testid="button-download-document-pdf"
                         >
@@ -486,6 +491,7 @@ export default function Home() {
                             Download {documentOutputFormat.toUpperCase()}
                           </a>
                         </Button>
+                        <ShareButton url={documentResult.url} title={`Check out this ${documentOutputFormat.toUpperCase()} I converted!`} />
                       </div>
                     </div>
                   </>
