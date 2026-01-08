@@ -19,8 +19,8 @@ export function PageReviews({ pagePath }: PageReviewsProps) {
   const [comment, setComment] = useState("");
   const [userName, setUserName] = useState("");
 
-  const { data: reviews = [], isLoading } = useQuery<Review[]>({
-    queryKey: ["/api/reviews", pagePath],
+  const { data: reviews = [] } = useQuery<Review[]>({
+    queryKey: ["/api/reviews", pagePath || "/"],
   });
 
   const mutation = useMutation({
@@ -29,11 +29,13 @@ export function PageReviews({ pagePath }: PageReviewsProps) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/reviews", pagePath] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reviews", pagePath || "/"] });
       setRating(0);
       setComment("");
       setUserName("");
       toast({ title: "Review submitted successfully!" });
+      // Reload to reflect changes as requested by user
+      window.location.reload();
     },
   });
 
@@ -42,89 +44,127 @@ export function PageReviews({ pagePath }: PageReviewsProps) {
     : 0;
 
   return (
-    <div className="space-y-6 mt-12 border-t pt-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Reviews</h2>
-        <div className="flex items-center gap-2">
-          <div className="flex">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <Star
-                key={s}
-                className={`w-5 h-5 ${s <= averageRating ? "fill-primary text-primary" : "text-muted"}`}
-              />
-            ))}
+    <div className="space-y-6 mt-12 border-t pt-8 pb-12">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold">Customer Reviews</h2>
+          <p className="text-sm text-muted-foreground">Share your feedback about this page</p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            <div className="flex">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star
+                  key={s}
+                  className={`w-5 h-5 ${s <= Math.round(averageRating) ? "fill-yellow-400 text-yellow-400" : "text-muted"}`}
+                />
+              ))}
+            </div>
+            <span className="text-xl font-bold">{averageRating.toFixed(1)}</span>
           </div>
-          <span className="font-medium">{averageRating.toFixed(1)} / 5.0</span>
-          <span className="text-muted-foreground">({reviews.length} reviews)</span>
+          <span className="text-sm text-muted-foreground">Based on {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}</span>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Write a Review</CardTitle>
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Add a Review</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <button
-                key={s}
-                onClick={() => setRating(s)}
-                className="focus:outline-none"
-                data-testid={`button-rate-${s}`}
-              >
-                <Star
-                  className={`w-8 h-8 transition-colors ${s <= rating ? "fill-primary text-primary" : "text-muted hover:text-primary"}`}
-                />
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">Your Rating:</span>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setRating(s)}
+                  className="focus:outline-none transition-transform active:scale-95"
+                  type="button"
+                  data-testid={`button-rate-${s}`}
+                >
+                  <Star
+                    className={`w-8 h-8 transition-colors ${s <= rating ? "fill-yellow-400 text-yellow-400" : "text-muted hover:text-yellow-400/50"}`}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
-          <Input
-            placeholder="Your Name (Optional)"
-            value={userName}
-            onChange={(e) => setUserName(e.target.value)}
-            data-testid="input-username"
-          />
-          <Textarea
-            placeholder="Share your experience..."
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            data-testid="textarea-comment"
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Name</label>
+              <Input
+                placeholder="Anonymous"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                data-testid="input-username"
+                className="bg-background"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Comment</label>
+            <Textarea
+              placeholder="How was your experience using this tool?"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              data-testid="textarea-comment"
+              className="bg-background min-h-[100px]"
+            />
+          </div>
           <Button
-            onClick={() => mutation.mutate({ pagePath, rating, comment, userName })}
+            onClick={() => mutation.mutate({ pagePath: pagePath || "/", rating, comment, userName: userName || "Anonymous" })}
             disabled={rating === 0 || mutation.isPending}
-            className="w-full"
+            className="w-full md:w-auto px-8"
             data-testid="button-submit-review"
           >
-            Submit Review
+            {mutation.isPending ? "Submitting..." : "Submit Review"}
           </Button>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4">
-        {reviews.map((review) => (
-          <Card key={review.id}>
-            <CardContent className="pt-6">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <span className="font-semibold block">{review.userName}</span>
-                  <div className="flex">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        className={`w-4 h-4 ${s <= review.rating ? "fill-primary text-primary" : "text-muted"}`}
-                      />
-                    ))}
+      <div className="space-y-4">
+        <h3 className="font-semibold text-lg">Recent Feedback</h3>
+        {reviews.length === 0 ? (
+          <p className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
+            No reviews yet. Be the first to share your thoughts!
+          </p>
+        ) : (
+          <div className="grid gap-4">
+            {[...reviews].reverse().map((review) => (
+              <Card key={review.id} className="hover:border-primary/30 transition-colors">
+                <CardContent className="pt-6">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold">{review.userName}</span>
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`w-3.5 h-3.5 ${s <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-muted"}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      {review.comment && (
+                        <p className="text-sm text-foreground/90 leading-relaxed">
+                          {review.comment}
+                        </p>
+                      )}
+                    </div>
+                    <time className="text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                      {new Date(review.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </time>
                   </div>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(review.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-              {review.comment && <p className="text-muted-foreground">{review.comment}</p>}
-            </CardContent>
-          </Card>
-        ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
