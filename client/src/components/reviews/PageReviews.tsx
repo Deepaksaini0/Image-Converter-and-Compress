@@ -20,7 +20,7 @@ export function PageReviews({ pagePath }: PageReviewsProps) {
   const [userName, setUserName] = useState("");
 
   const { data: reviews = [], isLoading } = useQuery<Review[]>({
-    queryKey: ["/api/reviews", { pagePath }],
+    queryKey: ["/api/reviews", pagePath],
   });
 
   const mutation = useMutation({
@@ -29,7 +29,7 @@ export function PageReviews({ pagePath }: PageReviewsProps) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/reviews", { pagePath }] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reviews", pagePath] });
       setRating(0);
       setComment("");
       setUserName("");
