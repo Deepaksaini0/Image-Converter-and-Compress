@@ -21,6 +21,12 @@ export function PageReviews({ pagePath }: PageReviewsProps) {
 
   const { data: reviews = [] } = useQuery<Review[]>({
     queryKey: ["/api/reviews", pagePath || "/"],
+    queryFn: async ({ queryKey }) => {
+      const path = queryKey[1] as string;
+      const res = await fetch(`/api/reviews?pagePath=${encodeURIComponent(path)}`);
+      if (!res.ok) throw new Error("Failed to fetch reviews");
+      return res.json();
+    },
   });
 
   const mutation = useMutation({
@@ -50,10 +56,18 @@ export function PageReviews({ pagePath }: PageReviewsProps) {
           <span className="text-muted-foreground font-medium whitespace-nowrap">Rate this tool</span>
           <div className="flex gap-0.5">
             {[1, 2, 3, 4, 5].map((s) => (
-              <Star
+              <button
                 key={s}
-                className={`w-5 h-5 ${s <= Math.round(averageRating) ? "fill-yellow-400 text-yellow-400" : "fill-[#d1d5db] text-[#d1d5db]"}`}
-              />
+                onClick={() => setRating(s)}
+                className="focus:outline-none transition-transform active:scale-95"
+                type="button"
+                data-testid={`button-rate-${s}`}
+              >
+                <Star
+                  key={s}
+                  className={`w-5 h-5 ${s <= Math.round(averageRating) ? "fill-yellow-400 text-yellow-400" : "fill-[#d1d5db] text-[#d1d5db]"}`}
+                />
+              </button>
             ))}
           </div>
           <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
