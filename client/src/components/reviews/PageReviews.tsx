@@ -58,10 +58,19 @@ export function PageReviews({ pagePath }: PageReviewsProps) {
             {[1, 2, 3, 4, 5].map((s) => (
               <button
                 key={s}
-                onClick={() => setRating(s)}
+                onClick={() => {
+                  setRating(s);
+                  mutation.mutate({ 
+                    pagePath: pagePath || "/", 
+                    rating: s, 
+                    comment: "", 
+                    userName: "Anonymous" 
+                  });
+                }}
                 className="focus:outline-none transition-transform active:scale-95"
                 type="button"
                 data-testid={`button-rate-${s}`}
+                disabled={mutation.isPending}
               >
                 <Star
                   key={s}
