@@ -8,7 +8,14 @@ import XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
 import { api } from "@shared/routes";
-import { conversionOptionsSchema, processRequestSchema, mergeRequestSchema, formats, documentConversionRequestSchema, insertReviewSchema } from "@shared/schema";
+import {
+  conversionOptionsSchema,
+  processRequestSchema,
+  mergeRequestSchema,
+  formats,
+  documentConversionRequestSchema,
+  insertReviewSchema,
+} from "@shared/schema";
 import { storage as dbStorage } from "./storage";
 import { z } from "zod";
 import CleanCSS from "clean-css";
@@ -34,16 +41,16 @@ const storage = multer.diskStorage({
     cb(null, UPLOADS_DIR);
   },
   filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
+  },
 });
 
 const upload = multer({ storage: storage });
 
 export async function registerRoutes(
   httpServer: Server,
-  app: Express
+  app: Express,
 ): Promise<Server> {
   // Reviews API
   app.get("/api/reviews", async (req, res) => {
@@ -58,18 +65,6 @@ export async function registerRoutes(
 
   app.post("/api/reviews", async (req, res) => {
     try {
-      const pagePath = req.body.pagePath || "/";
-      const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
-
-      const alreadyReviewed = await dbStorage.hasReviewed(pagePath, ipAddress);
-      if (alreadyReviewed) {
-        return res.status(403).json({ error: "You have already reviewed this page" });
-      }
-
-      const reviewData = insertReviewSchema.parse({
-        ...req.body,
-        ipAddress
-      });
       const review = await dbStorage.createReview(reviewData);
       res.json(review);
     } catch (err: any) {
@@ -125,9 +120,9 @@ export async function registerRoutes(
   }
 
   // Serve static files from uploads and output
-  app.use('/uploads', (req, res, next) => {
+  app.use("/uploads", (req, res, next) => {
     // Basic security: prevent directory traversal
-    if (req.path.includes('..')) return res.status(403).send('Forbidden');
+    if (req.path.includes("..")) return res.status(403).send("Forbidden");
     const filePath = path.join(UPLOADS_DIR, req.path);
     if (fs.existsSync(filePath)) {
       res.sendFile(filePath);
@@ -136,8 +131,8 @@ export async function registerRoutes(
     }
   });
 
-  app.use('/output', (req, res, next) => {
-    if (req.path.includes('..')) return res.status(403).send('Forbidden');
+  app.use("/output", (req, res, next) => {
+    if (req.path.includes("..")) return res.status(403).send("Forbidden");
     const filePath = path.join(OUTPUT_DIR, req.path);
     if (fs.existsSync(filePath)) {
       res.sendFile(filePath);
@@ -147,18 +142,18 @@ export async function registerRoutes(
   });
 
   // Upload Endpoint
-  app.post(api.upload.path, upload.array('files'), (req, res) => {
+  app.post(api.upload.path, upload.array("files"), (req, res) => {
     if (!req.files || (req.files as Express.Multer.File[]).length === 0) {
       return res.status(400).json({ message: "No files uploaded" });
     }
 
-    const files = (req.files as Express.Multer.File[]).map(file => ({
+    const files = (req.files as Express.Multer.File[]).map((file) => ({
       id: file.filename,
       originalName: file.originalname,
       filename: file.filename,
       mimeType: file.mimetype,
       size: file.size,
-      url: `/uploads/${file.filename}`
+      url: `/uploads/${file.filename}`,
     }));
 
     res.json(files);
@@ -172,7 +167,7 @@ export async function registerRoutes(
       const zipName = `batch-${Date.now()}.zip`;
       const zipPath = path.join(OUTPUT_DIR, zipName);
       const outputStream = fs.createWriteStream(zipPath);
-      const archive = archiver('zip', { zlib: { level: 9 } });
+      const archive = archiver("zip", { zlib: { level: 9 } });
 
       archive.pipe(outputStream);
 
@@ -181,7 +176,7 @@ export async function registerRoutes(
         if (!fs.existsSync(inputPath)) continue;
 
         const originalStats = fs.statSync(inputPath);
-        
+
         // Base Sharp instance
         let pipeline = sharp(inputPath);
 
@@ -190,7 +185,7 @@ export async function registerRoutes(
           const metadata = await pipeline.metadata();
           const width = metadata.width || 1000;
           const height = metadata.height || 1000;
-          
+
           // Simple SVG text watermark
           const fontSize = Math.floor(width * 0.05);
           const svgImage = `
@@ -201,12 +196,14 @@ export async function registerRoutes(
               <text x="95%" y="95%" text-anchor="end" class="title">${options.watermarkText}</text>
             </svg>
           `;
-          
-          pipeline = pipeline.composite([{
-            input: Buffer.from(svgImage),
-            top: 0,
-            left: 0,
-          }]);
+
+          pipeline = pipeline.composite([
+            {
+              input: Buffer.from(svgImage),
+              top: 0,
+              left: 0,
+            },
+          ]);
         }
 
         // Keep metadata?
@@ -247,11 +244,12 @@ export async function registerRoutes(
           // or just the last attempt? bestBuffer contains the valid one.
           // If bestBuffer is null, it means even Q=1 is too big, use Q=1.
           if (!bestBuffer) {
-             outputBuffer = await pipeline.toFormat(format, { quality: 1 }).toBuffer();
+            outputBuffer = await pipeline
+              .toFormat(format, { quality: 1 })
+              .toBuffer();
           } else {
-             outputBuffer = bestBuffer;
+            outputBuffer = bestBuffer;
           }
-
         } else {
           // Normal conversion
           outputBuffer = await pipeline
@@ -276,7 +274,7 @@ export async function registerRoutes(
           newSize: outputBuffer.length,
           format: format,
           width: 0, // could get from metadata if needed
-          height: 0
+          height: 0,
         });
       }
 
@@ -284,9 +282,8 @@ export async function registerRoutes(
 
       res.json({
         results,
-        zipUrl: `/output/${zipName}`
+        zipUrl: `/output/${zipName}`,
       });
-
     } catch (error) {
       console.error("Processing error:", error);
       res.status(500).json({ message: "Error processing images" });
@@ -299,7 +296,9 @@ export async function registerRoutes(
       const { fileIds, options } = mergeRequestSchema.parse(req.body);
 
       if (fileIds.length < 2) {
-        return res.status(400).json({ message: "Need at least 2 images to merge" });
+        return res
+          .status(400)
+          .json({ message: "Need at least 2 images to merge" });
       }
 
       // Load all images
@@ -310,12 +309,14 @@ export async function registerRoutes(
           const data = await sharp(inputPath).toBuffer();
           const metadata = await sharp(data).metadata();
           return { data, metadata, fileId };
-        })
+        }),
       );
 
       const validImages = images.filter((img) => img !== null);
       if (validImages.length < 2) {
-        return res.status(400).json({ message: "Not enough valid images to merge" });
+        return res
+          .status(400)
+          .json({ message: "Not enough valid images to merge" });
       }
 
       let merged: sharp.Sharp;
@@ -324,8 +325,13 @@ export async function registerRoutes(
 
       if (options.direction === "horizontal") {
         // Horizontal merge
-        const totalWidth = validImages.reduce((sum, img) => sum + (img.metadata.width || 0) + spacing, -spacing);
-        const maxHeight = Math.max(...validImages.map((img) => img.metadata.height || 0));
+        const totalWidth = validImages.reduce(
+          (sum, img) => sum + (img.metadata.width || 0) + spacing,
+          -spacing,
+        );
+        const maxHeight = Math.max(
+          ...validImages.map((img) => img.metadata.height || 0),
+        );
 
         const composites: sharp.OverlayOptions[] = [];
         let currentX = 0;
@@ -334,7 +340,9 @@ export async function registerRoutes(
           composites.push({
             input: img.data,
             left: currentX,
-            top: Math.floor(((maxHeight || 0) - (img.metadata.height || 0)) / 2),
+            top: Math.floor(
+              ((maxHeight || 0) - (img.metadata.height || 0)) / 2,
+            ),
           });
           currentX += (img.metadata.width || 0) + spacing;
         }
@@ -349,8 +357,13 @@ export async function registerRoutes(
         }).composite(composites);
       } else if (options.direction === "vertical") {
         // Vertical merge
-        const maxWidth = Math.max(...validImages.map((img) => img.metadata.width || 0));
-        const totalHeight = validImages.reduce((sum, img) => sum + (img.metadata.height || 0) + spacing, -spacing);
+        const maxWidth = Math.max(
+          ...validImages.map((img) => img.metadata.width || 0),
+        );
+        const totalHeight = validImages.reduce(
+          (sum, img) => sum + (img.metadata.height || 0) + spacing,
+          -spacing,
+        );
 
         const composites: sharp.OverlayOptions[] = [];
         let currentY = 0;
@@ -375,8 +388,12 @@ export async function registerRoutes(
       } else {
         // Grid merge (2x2 or more)
         const cols = Math.ceil(Math.sqrt(validImages.length));
-        const maxWidth = Math.max(...validImages.map((img) => img.metadata.width || 0));
-        const maxHeight = Math.max(...validImages.map((img) => img.metadata.height || 0));
+        const maxWidth = Math.max(
+          ...validImages.map((img) => img.metadata.width || 0),
+        );
+        const maxHeight = Math.max(
+          ...validImages.map((img) => img.metadata.height || 0),
+        );
 
         const composites: sharp.OverlayOptions[] = [];
         validImages.forEach((img, index) => {
@@ -392,7 +409,9 @@ export async function registerRoutes(
         merged = sharp({
           create: {
             width: cols * (maxWidth + spacing) - spacing,
-            height: Math.ceil(validImages.length / cols) * (maxHeight + spacing) - spacing,
+            height:
+              Math.ceil(validImages.length / cols) * (maxHeight + spacing) -
+              spacing,
             channels: 3,
             background: bgColor,
           },
@@ -400,7 +419,9 @@ export async function registerRoutes(
       }
 
       const format = options.format as keyof sharp.FormatEnum;
-      const outputBuffer = await merged.toFormat(format, { quality: options.quality }).toBuffer();
+      const outputBuffer = await merged
+        .toFormat(format, { quality: options.quality })
+        .toBuffer();
 
       const outputFilename = `merged-${Date.now()}.${format}`;
       const outputPath = path.join(OUTPUT_DIR, outputFilename);
@@ -411,11 +432,11 @@ export async function registerRoutes(
       // Generate PDF version
       const pdfFilename = `merged-${Date.now()}.pdf`;
       const pdfPath = path.join(OUTPUT_DIR, pdfFilename);
-      
+
       try {
         const doc = new PDFDocument({
           size: [metadata.width || 800, metadata.height || 600],
-          margins: 0
+          margins: 0,
         });
 
         const pdfStream = fs.createWriteStream(pdfPath);
@@ -424,14 +445,14 @@ export async function registerRoutes(
         // Use the saved image file path instead of buffer
         doc.image(outputPath, 0, 0, {
           width: metadata.width,
-          height: metadata.height
+          height: metadata.height,
         });
 
         doc.end();
 
         await new Promise<void>((resolve, reject) => {
-          pdfStream.on('finish', () => resolve());
-          pdfStream.on('error', (err) => reject(err));
+          pdfStream.on("finish", () => resolve());
+          pdfStream.on("error", (err) => reject(err));
         });
       } catch (pdfError) {
         console.error("PDF generation error:", pdfError);
@@ -441,7 +462,10 @@ export async function registerRoutes(
       res.json({
         url: `/output/${outputFilename}`,
         filename: outputFilename,
-        originalSize: validImages.reduce((sum, img) => sum + (img.metadata.size || 0), 0),
+        originalSize: validImages.reduce(
+          (sum, img) => sum + (img.metadata.size || 0),
+          0,
+        ),
         newSize: outputBuffer.length,
         width: metadata.width || 0,
         height: metadata.height || 0,
@@ -457,10 +481,14 @@ export async function registerRoutes(
   // Document Conversion Endpoint
   app.post(api.documentConvert.path, async (req, res) => {
     try {
-      const { fileIds, options } = documentConversionRequestSchema.parse(req.body);
+      const { fileIds, options } = documentConversionRequestSchema.parse(
+        req.body,
+      );
 
       if (fileIds.length !== 1) {
-        return res.status(400).json({ message: "Convert one document at a time" });
+        return res
+          .status(400)
+          .json({ message: "Convert one document at a time" });
       }
 
       const fileId = fileIds[0];
@@ -512,9 +540,17 @@ export async function registerRoutes(
           const pdfStream = fs.createWriteStream(outputPath);
           doc.pipe(pdfStream);
 
-          doc.fontSize(14).font("Helvetica-Bold").text("Document: " + fileName, { underline: true });
+          doc
+            .fontSize(14)
+            .font("Helvetica-Bold")
+            .text("Document: " + fileName, { underline: true });
           doc.fontSize(10).moveDown();
-          doc.font("Helvetica").text(docContent || "No content extracted", { align: "left", wordWrap: true });
+          doc
+            .font("Helvetica")
+            .text(docContent || "No content extracted", {
+              align: "left",
+              wordWrap: true,
+            });
 
           doc.end();
 
@@ -528,7 +564,12 @@ export async function registerRoutes(
         }
       } else if (outputFormat === "xlsx" || outputFormat === "csv") {
         // Create spreadsheet from content
-        const ws_data = [[fileName], ["Content extracted from: " + ext.toUpperCase()], [], ...docContent.split("\n").map(line => [line])];
+        const ws_data = [
+          [fileName],
+          ["Content extracted from: " + ext.toUpperCase()],
+          [],
+          ...docContent.split("\n").map((line) => [line]),
+        ];
         const ws = XLSX.utils.aoa_to_sheet(ws_data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
@@ -540,7 +581,9 @@ export async function registerRoutes(
           XLSX.writeFile(wb, outputPath);
         } catch (err) {
           console.error("Spreadsheet generation error:", err);
-          return res.status(500).json({ message: "Error generating spreadsheet" });
+          return res
+            .status(500)
+            .json({ message: "Error generating spreadsheet" });
         }
       } else if (outputFormat === "docx") {
         // For DOCX, create a simple text document file
@@ -572,10 +615,10 @@ export async function registerRoutes(
   });
 
   // SEO Audit Endpoint
-  app.post('/api/seo-audit', async (req, res) => {
+  app.post("/api/seo-audit", async (req, res) => {
     try {
       const { url } = req.body;
-      if (!url || typeof url !== 'string') {
+      if (!url || typeof url !== "string") {
         return res.status(400).json({ message: "Invalid URL" });
       }
 
@@ -590,7 +633,7 @@ export async function registerRoutes(
       const auditResult = await performSEOAudit(url);
       res.json(auditResult);
     } catch (error) {
-      console.error('SEO audit error:', error);
+      console.error("SEO audit error:", error);
       res.status(500).json({ message: "Error performing SEO audit" });
     }
   });
@@ -607,12 +650,12 @@ export async function registerRoutes(
       fs.readdir(dir, (err, files) => {
         if (err) return console.error(`Error reading ${dir}:`, err);
 
-        files.forEach(file => {
+        files.forEach((file) => {
           const filePath = path.join(dir, file);
           fs.stat(filePath, (err, stats) => {
             if (err) return;
             if (now - stats.mtimeMs > MAX_AGE) {
-              fs.unlink(filePath, err => {
+              fs.unlink(filePath, (err) => {
                 if (err) console.error(`Error deleting ${file}:`, err);
                 else console.log(`Deleted old file: ${file}`);
               });
@@ -645,12 +688,12 @@ async function performSEOAudit(baseUrl: string) {
     try {
       const response = await axios.get(url, { timeout: 5000 });
       const $ = cheerio.load(response.data);
-      
+
       const pageResults = auditPage(url, $);
       results.push(pageResults);
 
-      $('a[href]').each((_, el) => {
-        const href = $(el).attr('href');
+      $("a[href]").each((_, el) => {
+        const href = $(el).attr("href");
         if (!href) return;
         try {
           const absoluteUrl = new URL(href, url).href;
@@ -665,16 +708,19 @@ async function performSEOAudit(baseUrl: string) {
     }
   }
 
-  const avgScore = results.length > 0 
-    ? Math.round(results.reduce((sum, r) => sum + r.score, 0) / results.length)
-    : 0;
+  const avgScore =
+    results.length > 0
+      ? Math.round(
+          results.reduce((sum, r) => sum + r.score, 0) / results.length,
+        )
+      : 0;
 
   return {
     url: baseUrl,
     score: avgScore,
     timestamp: new Date().toISOString(),
     pages: results,
-    recommendations: results[0]?.recommendations || []
+    recommendations: results[0]?.recommendations || [],
   };
 }
 
@@ -685,42 +731,58 @@ function auditPage(url: string, $: cheerio.CheerioAPI) {
   const basicItems = [
     {
       name: "Title Tag",
-      status: ($('title').length > 0 && $('title').text().trim().length > 0) ? "pass" : "fail",
-      message: $('title').text().trim().length > 0 ? `Title: ${$('title').text().slice(0, 50)}...` : "Missing title tag",
-      severity: "critical"
+      status:
+        $("title").length > 0 && $("title").text().trim().length > 0
+          ? "pass"
+          : "fail",
+      message:
+        $("title").text().trim().length > 0
+          ? `Title: ${$("title").text().slice(0, 50)}...`
+          : "Missing title tag",
+      severity: "critical",
     },
     {
       name: "Meta Description",
-      status: $('meta[name="description"]').attr('content') ? "pass" : "warning",
-      message: $('meta[name="description"]').attr('content') ? "Meta description found" : "Missing meta description",
-      severity: "warning"
+      status: $('meta[name="description"]').attr("content")
+        ? "pass"
+        : "warning",
+      message: $('meta[name="description"]').attr("content")
+        ? "Meta description found"
+        : "Missing meta description",
+      severity: "warning",
     },
     {
       name: "H1 Tag",
-      status: $('h1').length === 1 ? "pass" : "warning",
-      message: `Found ${$('h1').length} H1 tags`,
-      severity: "critical"
-    }
+      status: $("h1").length === 1 ? "pass" : "warning",
+      message: `Found ${$("h1").length} H1 tags`,
+      severity: "critical",
+    },
   ];
-  
-  basicItems.forEach(item => { if (item.status !== "pass") score -= 10; });
+
+  basicItems.forEach((item) => {
+    if (item.status !== "pass") score -= 10;
+  });
   checks.push({ category: "Basic SEO", items: basicItems });
 
   const techItems = [
     {
       name: "Image ALT Text",
-      status: $('img:not([alt])').length === 0 ? "pass" : "warning",
-      message: `Found ${$('img:not([alt])').length} images without alt text`,
-      severity: "warning"
-    }
+      status: $("img:not([alt])").length === 0 ? "pass" : "warning",
+      message: `Found ${$("img:not([alt])").length} images without alt text`,
+      severity: "warning",
+    },
   ];
-  techItems.forEach(item => { if (item.status !== "pass") score -= 5; });
+  techItems.forEach((item) => {
+    if (item.status !== "pass") score -= 5;
+  });
   checks.push({ category: "Technical SEO", items: techItems });
 
   return {
     url,
     score: Math.max(0, score),
     checks,
-    recommendations: basicItems.filter(i => i.status !== "pass").map(i => i.message)
+    recommendations: basicItems
+      .filter((i) => i.status !== "pass")
+      .map((i) => i.message),
   };
 }
