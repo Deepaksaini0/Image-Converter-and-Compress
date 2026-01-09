@@ -2,11 +2,12 @@
 
 import { reviews, type Review, type InsertReview } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
   getReviews(pagePath: string): Promise<Review[]>;
   createReview(review: InsertReview): Promise<Review>;
+  hasReviewed(pagePath: string, ipAddress: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -17,6 +18,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(reviews.pagePath, pagePath));
   }
 
+  async hasReviewed(pagePath: string, ipAddress: string): Promise<boolean> {
+    const existing = await db
+      .select()
+      .from(reviews)
+      .where(
+        and(
+          eq(reviews.pagePath, pagePath),
+          eq(reviews.ipAddress, ipAddress)
+        )
+      )
+      .limit(1);
+    return existing.length > 0;
+  }
+
   async createReview(insertReview: InsertReview): Promise<Review> {
     try {
       const [review] = await db
@@ -24,18 +39,14 @@ export class DatabaseStorage implements IStorage {
         .values({
           pagePath: insertReview.pagePath,
           rating: insertReview.rating,
-
-          // 🔥 FIX: empty string → null
+          ipAddress: insertReview.ipAddress,
           comment: insertReview.comment?.trim() || null,
-
-          // 🔥 FIX: empty name → Anonymous
           userName: insertReview.userName?.trim() || "Anonymous",
         })
         .returning();
 
       return review;
     } catch (error) {
-      // 🔴 CRITICAL: log real DB error
       console.error("❌ Create review failed:", error);
       throw error;
     }
