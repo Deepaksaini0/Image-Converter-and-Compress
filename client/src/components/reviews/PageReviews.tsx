@@ -51,6 +51,11 @@ export function PageReviews({ pagePath }: PageReviewsProps) {
       setShowThankYou(true);
 
       toast({ title: "Review submitted successfully!" });
+      
+      // Remove the thank you message after 5 seconds instead of reloading
+      setTimeout(() => {
+        setShowThankYou(false);
+      }, 5000);
     },
     onError: (error: any) => {
       const message = error.response?.data?.error || "Unable to submit review";
