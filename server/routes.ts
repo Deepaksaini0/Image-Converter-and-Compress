@@ -8,7 +8,8 @@ import XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
 import { api } from "@shared/routes";
-import { conversionOptionsSchema, processRequestSchema, mergeRequestSchema, formats, documentConversionRequestSchema } from "@shared/schema";
+import { conversionOptionsSchema, processRequestSchema, mergeRequestSchema, formats, documentConversionRequestSchema, insertReviewSchema } from "@shared/schema";
+import { storage as dbStorage } from "./storage";
 import { z } from "zod";
 import CleanCSS from "clean-css";
 import beautify from "js-beautify";
@@ -16,7 +17,6 @@ import { minify as htmlMinify } from "html-minifier-terser";
 import { minify as jsMinify } from "terser";
 import axios from "axios";
 import * as cheerio from "cheerio";
-import { storage } from "./storage";
 
 // pdf-parse - handle ESM import
 let pdfParse: any;
@@ -45,48 +45,38 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
-  /* =====================================================
-     ⭐ REVIEWS API (FIXES "Unable to submit review")
-  ====================================================== */
-
+  // Reviews API
   app.get("/api/reviews", async (req, res) => {
     try {
-      const pagePath = req.query.pagePath as string;
-
-      if (!pagePath) {
-        return res.status(400).json({ message: "pagePath is required" });
-      }
-
-      const reviews = await storage.getReviews(pagePath);
-      res.json(reviews);
-    } catch (err) {
-      console.error("GET /api/reviews error:", err);
-      res.status(500).json({ message: "Failed to load reviews" });
+      const pagePath = (req.query.pagePath as string) || "/";
+      const reviewsData = await dbStorage.getReviews(pagePath);
+      res.json(reviewsData);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch reviews" });
     }
   });
 
   app.post("/api/reviews", async (req, res) => {
     try {
-      const { pagePath, rating, comment, userName } = req.body;
+      const pagePath = req.body.pagePath || "/";
+      const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
 
-      if (!pagePath || !rating) {
-        return res.status(400).json({ message: "Invalid review data" });
+      const alreadyReviewed = await dbStorage.hasReviewed(pagePath, ipAddress);
+      if (alreadyReviewed) {
+        return res.status(403).json({ error: "You have already reviewed this page" });
       }
 
-      const review = await storage.createReview({
-        pagePath,
-        rating,
-        comment,
-        userName
+      const reviewData = insertReviewSchema.parse({
+        ...req.body,
+        ipAddress
       });
-
+      const review = await dbStorage.createReview(reviewData);
       res.json(review);
-    } catch (err) {
-      console.error("POST /api/reviews error:", err);
-      res.status(500).json({ message: "Unable to submit review" });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
     }
   });
+
   app.post("/api/web-tools/process", async (req, res) => {
     const { input, tool } = req.body;
     if (!input) return res.status(400).json({ error: "Input is required" });
