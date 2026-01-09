@@ -58,7 +58,6 @@ export async function registerRoutes(
 
   app.post("/api/reviews", async (req, res) => {
     try {
-<<<<<<< HEAD
       const pagePath = req.body.pagePath || "/";
       const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
 
@@ -71,9 +70,6 @@ export async function registerRoutes(
         ...req.body,
         ipAddress
       });
-=======
-      const reviewData = insertReviewSchema.parse(req.body);
->>>>>>> 578031c (Add review submission and retrieval API endpoints to the backend)
       const review = await dbStorage.createReview(reviewData);
       res.json(review);
     } catch (err: any) {
