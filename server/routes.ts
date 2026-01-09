@@ -545,12 +545,10 @@ export async function registerRoutes(
             .font("Helvetica-Bold")
             .text("Document: " + fileName, { underline: true });
           doc.fontSize(10).moveDown();
-          doc
-            .font("Helvetica")
-            .text(docContent || "No content extracted", {
-              align: "left",
-              wordWrap: true,
-            });
+          doc.font("Helvetica").text(docContent || "No content extracted", {
+            align: "left",
+            wordWrap: true,
+          });
 
           doc.end();
 

@@ -4,6 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
+app.set("trust proxy", true);
 const httpServer = createServer(app);
 
 declare module "http" {

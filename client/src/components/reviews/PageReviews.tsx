@@ -52,10 +52,11 @@ export function PageReviews({ pagePath }: PageReviewsProps) {
 
       toast({ title: "Review submitted successfully!" });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const message = error.response?.data?.error || "Unable to submit review";
       toast({
-        title: "Something went wrong",
-        description: "Unable to submit review",
+        title: "Submission failed",
+        description: message,
         variant: "destructive",
       });
     },
