@@ -65,6 +65,7 @@ export async function registerRoutes(
 
   app.post("/api/reviews", async (req, res) => {
     try {
+      const reviewData = insertReviewSchema.parse(req.body);
       const review = await dbStorage.createReview(reviewData);
       res.json(review);
     } catch (err: any) {
