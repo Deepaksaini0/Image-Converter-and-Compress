@@ -736,7 +736,7 @@ function auditPage(url: string, $: cheerio.CheerioAPI) {
           : "fail",
       message:
         $("title").text().trim().length > 0
-          ? `Title: ${$("title").text().slice(0, 50)}...`
+          ? `Title: ${$("title").text().trim()}`
           : "Missing title tag",
       severity: "critical",
     },
@@ -759,7 +759,8 @@ function auditPage(url: string, $: cheerio.CheerioAPI) {
   ];
 
   basicItems.forEach((item) => {
-    if (item.status !== "pass") score -= 10;
+    if (item.status === "fail") score -= 20;
+    else if (item.status === "warning") score -= 10;
   });
   checks.push({ category: "Basic SEO", items: basicItems });
 
@@ -770,17 +771,61 @@ function auditPage(url: string, $: cheerio.CheerioAPI) {
       message: `Found ${$("img:not([alt])").length} images without alt text`,
       severity: "warning",
     },
+    {
+      name: "Canonical Tag",
+      status: $('link[rel="canonical"]').length > 0 ? "pass" : "warning",
+      message: $('link[rel="canonical"]').length > 0 ? "Canonical tag present" : "Missing canonical tag",
+      severity: "medium",
+    },
+    {
+      name: "Viewport Tag",
+      status: $('meta[name="viewport"]').length > 0 ? "pass" : "fail",
+      message: $('meta[name="viewport"]').length > 0 ? "Viewport meta tag present" : "Missing viewport tag (Mobile Friendly)",
+      severity: "critical",
+    },
+    {
+      name: "Robots Meta Tag",
+      status: $('meta[name="robots"]').length > 0 ? "pass" : "warning",
+      message: $('meta[name="robots"]').length > 0 ? "Robots meta tag found" : "Missing robots meta tag",
+      severity: "medium",
+    },
   ];
   techItems.forEach((item) => {
-    if (item.status !== "pass") score -= 5;
+    if (item.status === "fail") score -= 10;
+    else if (item.status === "warning") score -= 5;
   });
   checks.push({ category: "Technical SEO", items: techItems });
+
+  const whiteLabelItems = [
+    {
+      name: "Internal Links",
+      status: $("a[href^='/'], a[href^='" + url + "']").length > 0 ? "pass" : "warning",
+      message: `Found ${$("a[href^='/'], a[href^='" + url + "']").length} internal links`,
+      severity: "medium",
+    },
+    {
+      name: "Social Tags (Open Graph)",
+      status: $('meta[property^="og:"]').length > 0 ? "pass" : "warning",
+      message: `${$('meta[property^="og:"]').length} OG tags found`,
+      severity: "low",
+    },
+    {
+      name: "Favicon",
+      status: $('link[rel*="icon"]').length > 0 ? "pass" : "warning",
+      message: $('link[rel*="icon"]').length > 0 ? "Favicon found" : "Missing favicon",
+      severity: "low",
+    }
+  ];
+  whiteLabelItems.forEach((item) => {
+    if (item.status !== "pass") score -= 2;
+  });
+  checks.push({ category: "White Label SEO", items: whiteLabelItems });
 
   return {
     url,
     score: Math.max(0, score),
     checks,
-    recommendations: basicItems
+    recommendations: [...basicItems, ...techItems, ...whiteLabelItems]
       .filter((i) => i.status !== "pass")
       .map((i) => i.message),
   };
