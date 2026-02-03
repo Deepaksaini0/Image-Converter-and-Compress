@@ -65,10 +65,14 @@ export async function registerRoutes(
 
   app.post("/api/reviews", async (req, res) => {
     try {
-      const reviewData = insertReviewSchema.parse(req.body);
+      const reviewData = insertReviewSchema.parse({
+        ...req.body,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "unknown",
+      });
       const review = await dbStorage.createReview(reviewData);
       res.json(review);
     } catch (err: any) {
+      console.error("Review error:", err);
       res.status(400).json({ error: err.message });
     }
   });
