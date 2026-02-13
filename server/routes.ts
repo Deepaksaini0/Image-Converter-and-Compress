@@ -79,13 +79,18 @@ export async function registerRoutes(
 
   app.post("/api/generate-sitemap", async (req, res) => {
     try {
-      const { url } = req.body;
+      let { url } = req.body;
       if (!url) return res.status(400).json({ error: "URL is required" });
 
-      const domain = new URL(url).origin;
+      // Normalize URL
+      if (!url.startsWith("http")) url = "https://" + url;
+      const urlObj = new URL(url);
+      const domain = urlObj.origin;
       const visited = new Set<string>();
       const toVisit = [domain];
       const maxPages = 2000;
+
+      console.log(`Starting sitemap generation for: ${domain}`);
 
       while (toVisit.length > 0 && visited.size < maxPages) {
         const currentUrl = toVisit.shift()!;
@@ -93,24 +98,35 @@ export async function registerRoutes(
         visited.add(currentUrl);
 
         try {
-          const response = await axios.get(currentUrl, { timeout: 10000 });
+          const response = await axios.get(currentUrl, { 
+            timeout: 10000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; SitemapGenerator/1.0)'
+            }
+          });
           const $ = cheerio.load(response.data);
 
           $("a[href]").each((_, el) => {
             const href = $(el).attr("href");
             if (!href) return;
             try {
-              const urlObj = new URL(href, currentUrl);
-              const absoluteUrl = urlObj.origin + urlObj.pathname;
-              if (urlObj.origin === domain && !visited.has(absoluteUrl) && !toVisit.includes(absoluteUrl)) {
+              const linkUrl = new URL(href, currentUrl);
+              const absoluteUrl = linkUrl.origin + linkUrl.pathname.replace(/\/$/, "");
+              
+              if (linkUrl.origin === domain && 
+                  !visited.has(absoluteUrl) && 
+                  !toVisit.includes(absoluteUrl) &&
+                  !absoluteUrl.match(/\.(jpg|jpeg|png|gif|pdf|zip|gz|exe)$/i)) {
                 toVisit.push(absoluteUrl);
               }
             } catch {}
           });
-        } catch (err) {
-          console.error(`Sitemap crawl error for ${currentUrl}:`, err);
+        } catch (err: any) {
+          console.error(`Sitemap crawl error for ${currentUrl}:`, err.message);
         }
       }
+
+      console.log(`Crawled ${visited.size} pages for ${domain}`);
 
       const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -128,6 +144,7 @@ ${Array.from(visited).map(page => {
       res.header('Content-Type', 'application/xml');
       res.send(sitemap);
     } catch (err: any) {
+      console.error("Sitemap generation error:", err);
       res.status(500).json({ error: err.message });
     }
   });
