@@ -85,7 +85,7 @@ export async function registerRoutes(
       const domain = new URL(url).origin;
       const visited = new Set<string>();
       const toVisit = [domain];
-      const maxPages = 50;
+      const maxPages = 2000;
 
       while (toVisit.length > 0 && visited.size < maxPages) {
         const currentUrl = toVisit.shift()!;
@@ -93,15 +93,15 @@ export async function registerRoutes(
         visited.add(currentUrl);
 
         try {
-          const response = await axios.get(currentUrl, { timeout: 5000 });
+          const response = await axios.get(currentUrl, { timeout: 10000 });
           const $ = cheerio.load(response.data);
 
           $("a[href]").each((_, el) => {
             const href = $(el).attr("href");
             if (!href) return;
             try {
-              const absoluteUrl = new URL(href, currentUrl).origin + new URL(href, currentUrl).pathname;
-              const urlObj = new URL(absoluteUrl);
+              const urlObj = new URL(href, currentUrl);
+              const absoluteUrl = urlObj.origin + urlObj.pathname;
               if (urlObj.origin === domain && !visited.has(absoluteUrl) && !toVisit.includes(absoluteUrl)) {
                 toVisit.push(absoluteUrl);
               }
@@ -114,12 +114,15 @@ export async function registerRoutes(
 
       const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${Array.from(visited).map(page => `  <url>
+${Array.from(visited).map(page => {
+  const isHome = page === domain || page === domain + "/";
+  return `  <url>
     <loc>${page}</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>`).join('\n')}
+    <changefreq>${isHome ? 'daily' : 'weekly'}</changefreq>
+    <priority>${isHome ? '1.00' : '0.8'}</priority>
+  </url>`;
+}).join('\n')}
 </urlset>`;
 
       res.header('Content-Type', 'application/xml');
