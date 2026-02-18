@@ -77,6 +77,28 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/seo/social-preview", async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) return res.status(400).json({ error: "URL is required" });
+
+      const response = await axios.get(url, { timeout: 8000 });
+      const $ = cheerio.load(response.data);
+
+      const preview = {
+        title: $('meta[property="og:title"]').attr('content') || $('title').text() || "",
+        description: $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || "",
+        image: $('meta[property="og:image"]').attr('content') || "",
+        site_name: $('meta[property="og:site_name"]').attr('content') || "",
+        url: url
+      };
+
+      res.json(preview);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch social preview: " + err.message });
+    }
+  });
+
   app.post("/api/seo/keyword-density", async (req, res) => {
     try {
       const { text } = req.body;

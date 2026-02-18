@@ -217,12 +217,12 @@ export default function Home() {
                       <span className="hidden sm:inline">SEO Audit</span>
                     </Button>
                   </Link>
-                  <Link href="/seo-tools">
-                    <Button variant="outline" className="flex items-center gap-2 hover-elevate" data-testid="button-seo-tools-nav">
-                      <BarChart3 className="h-4 w-4" />
-                      <span className="hidden sm:inline">SEO Tools</span>
-                    </Button>
-                  </Link>
+              <Link href="/seo-tools">
+                <Button variant="outline" className="flex items-center gap-2 hover-elevate" data-testid="button-seo-tools-nav">
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">SEO Tools</span>
+                </Button>
+              </Link>
                   <Link href="/text-to-html">
                     <Button variant="outline" className="flex items-center gap-2 hover-elevate" data-testid="button-text-to-html-nav">
                       <Code className="h-4 w-4" />
