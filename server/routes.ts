@@ -77,6 +77,59 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/seo/keyword-density", async (req, res) => {
+    try {
+      const { text } = req.body;
+      if (!text || typeof text !== "string") {
+        return res.status(400).json({ error: "Text is required" });
+      }
+
+      const words = text
+        .toLowerCase()
+        .replace(/[^\w\s]/g, "")
+        .split(/\s+/)
+        .filter(word => word.length > 2);
+
+      const totalWords = words.length;
+      const counts: Record<string, number> = {};
+      words.forEach(word => {
+        counts[word] = (counts[word] || 0) + 1;
+      });
+
+      const density = Object.entries(counts)
+        .map(([word, count]) => ({
+          word,
+          count,
+          percentage: ((count / totalWords) * 100).toFixed(2)
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 20);
+
+      res.json({ totalWords, density });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/seo/parse-sitemap", async (req, res) => {
+    try {
+      const { xml } = req.body;
+      if (!xml || typeof xml !== "string") {
+        return res.status(400).json({ error: "Sitemap XML is required" });
+      }
+
+      const $ = cheerio.load(xml, { xmlMode: true });
+      const urls: string[] = [];
+      $("url > loc").each((_, el) => {
+        urls.push($(el).text().trim());
+      });
+
+      res.json({ count: urls.length, urls });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/generate-sitemap", async (req, res) => {
     try {
       let { url } = req.body;
