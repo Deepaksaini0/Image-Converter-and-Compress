@@ -1,3 +1,4 @@
+import OpenAI from "openai";
 import type { Express } from "express";
 import type { Server } from "http";
 import multer from "multer";
@@ -82,6 +83,11 @@ export async function registerRoutes(
       const { title } = req.body;
       if (!title) return res.status(400).json({ error: "Title is required" });
 
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
@@ -101,7 +107,8 @@ export async function registerRoutes(
 
       res.json({ keywords });
     } catch (err: any) {
-      res.status(500).json({ error: "Failed to generate keywords: " + err.message });
+      console.error("OpenAI Error:", err);
+      res.status(500).json({ error: "Failed to generate keywords: " + (err.message || "Unknown error") });
     }
   });
 
