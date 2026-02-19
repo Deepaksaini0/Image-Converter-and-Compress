@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { MergeControls } from "@/components/MergeControls";
 import { DocumentControls } from "@/components/DocumentControls";
 import { ResultCard } from "@/components/ResultCard";
+import { ImageEditor } from "@/components/ImageEditor";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Download, RotateCcw, Image as ImageIcon, FileText, HelpCircle, FileJson, Zap, Code, BarChart3 } from "lucide-react";
@@ -39,6 +40,7 @@ export default function Home() {
   });
 
   const [documentOutputFormat, setDocumentOutputFormat] = useState<string>("pdf");
+  const [editingFile, setEditingFile] = useState<UploadedFile | null>(null);
 
   const uploadMutation = useUploadFiles();
   const processMutation = useProcessFiles();
@@ -57,6 +59,21 @@ export default function Home() {
 
   const handleRemoveFile = (id: string) => {
     setUploadedFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  const handleEditSave = async (blob: Blob) => {
+    if (!editingFile) return;
+
+    try {
+      const file = new File([blob], editingFile.originalName, { type: 'image/jpeg' });
+      const uploaded = await uploadMutation.mutateAsync([file]);
+      
+      setUploadedFiles(prev => prev.map(f => f.id === editingFile.id ? uploaded[0] : f));
+      setEditingFile(null);
+      toast({ title: "Image updated successfully" });
+    } catch (error) {
+      toast({ title: "Failed to save edited image", variant: "destructive" });
+    }
   };
 
   const handleProcess = async () => {
@@ -298,11 +315,20 @@ export default function Home() {
                             key={file.id} 
                             file={file} 
                             onRemove={handleRemoveFile} 
+                            onEdit={(f) => setEditingFile(f)}
                           />
                         ))}
                       </AnimatePresence>
                     </div>
                   </section>
+                )}
+
+                {editingFile && (
+                  <ImageEditor
+                    image={editingFile.url}
+                    onSave={handleEditSave}
+                    onClose={() => setEditingFile(null)}
+                  />
                 )}
               </motion.div>
             ) : (
