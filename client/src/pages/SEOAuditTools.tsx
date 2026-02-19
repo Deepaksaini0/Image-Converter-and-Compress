@@ -28,6 +28,10 @@ export default function SEOAuditTools() {
   const [previewUrl, setPreviewUrl] = useState("");
   const [socialData, setSocialData] = useState<{ title: string; description: string; image: string; site_name: string; url: string } | null>(null);
 
+  // Keyword Generator State
+  const [targetTitle, setTargetTitle] = useState("");
+  const [suggestedKeywords, setSuggestedKeywords] = useState<string[]>([]);
+
   const handleSitemapParse = async () => {
     if (!sitemapXml.trim()) return;
     setIsLoading(true);
@@ -99,6 +103,26 @@ export default function SEOAuditTools() {
     }
   };
 
+  const generateKeywords = async () => {
+    if (!targetTitle) return;
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/seo/suggest-keywords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: targetTitle }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setSuggestedKeywords(data.keywords);
+      toast({ title: "Keywords Generated" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -127,6 +151,9 @@ export default function SEOAuditTools() {
             </TabsTrigger>
             <TabsTrigger value="social" className="flex items-center gap-2">
               <Share2 className="h-4 w-4" /> Social Preview
+            </TabsTrigger>
+            <TabsTrigger value="keywords-gen" className="flex items-center gap-2">
+              <Search className="h-4 w-4" /> Keyword Suggest
             </TabsTrigger>
           </TabsList>
 
@@ -379,6 +406,67 @@ export default function SEOAuditTools() {
                       Fetch a URL to see how it looks on social media
                     </p>
                   )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="keywords-gen">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <Card className="flex flex-col h-[600px]">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-lg">Target Title</CardTitle>
+                  <Button onClick={generateKeywords} disabled={isLoading || !targetTitle}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
+                    Get Keywords
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  <div className="space-y-2">
+                    <Label>Page Title</Label>
+                    <Input 
+                      placeholder="e.g. Best wireless headphones 2024" 
+                      value={targetTitle}
+                      onChange={(e) => setTargetTitle(e.target.value)}
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground italic">
+                    I'll use AI to analyze the title and suggest 20 high-performing keywords.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="flex flex-col h-[600px]">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg">Suggested Keywords</CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={suggestedKeywords.length === 0}
+                    onClick={() => {
+                      navigator.clipboard.writeText(suggestedKeywords.join(", "));
+                      toast({ title: "Copied to clipboard" });
+                    }}
+                  >
+                    Copy All
+                  </Button>
+                </CardHeader>
+                <CardContent className="flex-1 p-0">
+                  <ScrollArea className="h-full">
+                    <div className="p-4 flex flex-wrap gap-2">
+                      {suggestedKeywords.length > 0 ? (
+                        suggestedKeywords.map((kw, i) => (
+                          <div key={i} className="px-3 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-full text-sm font-medium">
+                            {kw}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground italic text-center py-8 w-full">
+                          Keywords will appear here after generation
+                        </p>
+                      )}
+                    </div>
+                  </ScrollArea>
                 </CardContent>
               </Card>
             </div>

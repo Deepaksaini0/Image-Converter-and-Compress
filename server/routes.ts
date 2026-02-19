@@ -77,6 +77,34 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/seo/suggest-keywords", async (req, res) => {
+    try {
+      const { title } = req.body;
+      if (!title) return res.status(400).json({ error: "Title is required" });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are an SEO expert. Given a page title, provide exactly 20 high-performing, relevant Google keywords as a comma-separated list. No introductory text."
+          },
+          {
+            role: "user",
+            content: `Title: ${title}`
+          }
+        ]
+      });
+
+      const content = response.choices[0].message.content || "";
+      const keywords = content.split(",").map(kw => kw.trim()).filter(kw => kw.length > 0);
+
+      res.json({ keywords });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to generate keywords: " + err.message });
+    }
+  });
+
   app.post("/api/seo/social-preview", async (req, res) => {
     try {
       const { url } = req.body;
