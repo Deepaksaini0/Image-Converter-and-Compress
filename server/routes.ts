@@ -5,7 +5,7 @@ import multer from "multer";
 import sharp from "sharp";
 import archiver from "archiver";
 import PDFDocument from "pdfkit";
-import XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
 import { api } from "@shared/routes";
@@ -694,9 +694,17 @@ ${Array.from(visited).map(page => {
       let docContent = "";
 
       if (ext === "xlsx" || ext === "xls") {
-        const workbook = XLSX.readFile(inputPath);
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        docContent = XLSX.utils.sheet_to_csv(worksheet);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(inputPath);
+        const worksheet = workbook.worksheets[0];
+        const rows: string[] = [];
+        if (worksheet) {
+          worksheet.eachRow((row) => {
+            const values = row.values as (string | number | null)[];
+            rows.push(values.slice(1).map(v => v ?? "").join(","));
+          });
+        }
+        docContent = rows.join("\n");
       } else if (ext === "csv") {
         docContent = fs.readFileSync(inputPath, "utf-8");
       } else if (ext === "ods") {
@@ -748,22 +756,26 @@ ${Array.from(visited).map(page => {
           return res.status(500).json({ message: "Error generating PDF" });
         }
       } else if (outputFormat === "xlsx" || outputFormat === "csv") {
-        // Create spreadsheet from content
-        const ws_data = [
+        const wsData = [
           [fileName],
           ["Content extracted from: " + ext.toUpperCase()],
           [],
           ...docContent.split("\n").map((line) => [line]),
         ];
-        const ws = XLSX.utils.aoa_to_sheet(ws_data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
 
         outputFilename = `${fileName}-${Date.now()}.${outputFormat}`;
         outputPath = path.join(OUTPUT_DIR, outputFilename);
 
         try {
-          XLSX.writeFile(wb, outputPath);
+          if (outputFormat === "csv") {
+            const csvContent = wsData.map(row => row.join(",")).join("\n");
+            fs.writeFileSync(outputPath, csvContent, "utf-8");
+          } else {
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet("Sheet1");
+            wsData.forEach(row => ws.addRow(row));
+            await wb.xlsx.writeFile(outputPath);
+          }
         } catch (err) {
           console.error("Spreadsheet generation error:", err);
           return res
