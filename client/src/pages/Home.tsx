@@ -22,7 +22,7 @@ export default function Home() {
   const [mergedResult, setMergedResult] = useState<any>(null);
   const [documentResult, setDocumentResult] = useState<any>(null);
   const [zipUrl, setZipUrl] = useState<string | null>(null);
-  const [mode, setMode] = useState<"convert" | "merge" | "document">("convert");
+  const [mode, setMode] = useState<"convert" | "merge" | "document" | "editor">("convert");
   
   const [options, setOptions] = useState<ConversionOptions>({
     format: "jpeg",
@@ -137,6 +137,17 @@ export default function Home() {
     setZipUrl(null);
   };
 
+  const handleEditorDrop = async (files: File[]) => {
+    try {
+      const uploaded = await uploadMutation.mutateAsync(files);
+      if (uploaded.length > 0) {
+        setEditingFile(uploaded[0]);
+      }
+    } catch (error) {
+      // Handled by mutation hook
+    }
+  };
+
   const showResults = results !== null || mergedResult !== null || documentResult !== null;
 
   return (
@@ -156,6 +167,7 @@ export default function Home() {
                 <TabsList className="grid w-full grid-cols-3 bg-gray-300">
                   <TabsTrigger value="convert" className="btn-secondary bg-gray-300 text-black hover:bg-gray-400">Convert</TabsTrigger>
                   <TabsTrigger value="merge" className="btn-secondary bg-gray-300 text-black hover:bg-gray-400">Merge</TabsTrigger>
+                  <TabsTrigger value="editor" className="btn-secondary bg-gray-300 text-black hover:bg-gray-400">Edit</TabsTrigger>
                   <TabsTrigger value="document" className="btn-secondary bg-gray-300 text-black hover:bg-gray-400">Document</TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -183,6 +195,21 @@ export default function Home() {
                   >
                     {mergeMutation.isPending ? "Merging..." : "Merge Images"}
                   </Button>
+                </div>
+              ) : mode === "editor" ? (
+                <div className="p-6 space-y-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Image Editor</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Upload an image to crop, resize, or rotate it.
+                    </p>
+                    <div className="pt-4">
+                      <Dropzone 
+                        onDrop={handleEditorDrop} 
+                        isUploading={uploadMutation.isPending} 
+                      />
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="p-6 space-y-6">
@@ -221,7 +248,7 @@ export default function Home() {
                 <ImageIcon className="h-6 w-6 text-white" />
               </div>
               <h1 className="text-2xl font-display font-bold text-black dark:text-black">
-                {mode === "convert" ? "Image Convert / Compress" : mode === "merge" ? "Merge Image" : "Convert PDF"}
+                {mode === "convert" ? "Image Convert / Compress" : mode === "merge" ? "Merge Image" : mode === "editor" ? "Edit Image" : "Convert PDF"}
               </h1>
             </div>
             
@@ -288,7 +315,7 @@ export default function Home() {
                 <section>
                   <Dropzone onDrop={handleDrop} isUploading={uploadMutation.isPending} />
                   <p className="text-sm text-muted-foreground mt-2">
-                    {mode === "merge" ? "Select 2+ images to merge them together" : mode === "document" ? "Upload documents (XLSX, XLS, CSV, ODS, DOCX) to convert to PDF" : "Upload images to convert or compress"}
+                    {mode === "merge" ? "Select 2+ images to merge them together" : mode === "document" ? "Upload documents (XLSX, XLS, CSV, ODS, DOCX) to convert to PDF" : mode === "editor" ? "Upload an image to start editing" : "Upload images to convert or compress"}
                   </p>
                 </section>
 
