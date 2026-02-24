@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Maximize2, Crop, RotateCw, Type } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Maximize2, Crop, RotateCw, Type, Lock, Unlock } from 'lucide-react';
 
 interface ImageEditorProps {
   image: string;
@@ -19,7 +20,9 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
   const [cropper, setCropper] = useState<CropperRef | null>(null);
   const [resize, setResize] = useState({ width: 0, height: 0, originalWidth: 0, originalHeight: 0 });
   const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
+  const [lockAspectRatio, setLockAspectRatio] = useState(true);
   const [rotation, setRotation] = useState(0);
+  const [backgroundColor, setBackgroundColor] = useState('#ffffff');
 
   const handleUpdate = (ref: CropperRef) => {
     setCropper(ref);
@@ -46,12 +49,41 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
     if (width > 0 && cropper) {
       const state = cropper.getState();
       if (state?.coordinates) {
-        const ratio = state.coordinates.height / state.coordinates.width;
-        cropper.setCoordinates({
-          ...state.coordinates,
-          width,
-          height: Math.round(width * ratio)
-        });
+        if (lockAspectRatio) {
+          const ratio = state.coordinates.height / state.coordinates.width;
+          cropper.setCoordinates({
+            ...state.coordinates,
+            width,
+            height: Math.round(width * ratio)
+          });
+        } else {
+          cropper.setCoordinates({
+            ...state.coordinates,
+            width
+          });
+        }
+      }
+    }
+  };
+
+  const handleResizeHeight = (val: string) => {
+    const height = parseInt(val) || 0;
+    if (height > 0 && cropper) {
+      const state = cropper.getState();
+      if (state?.coordinates) {
+        if (lockAspectRatio) {
+          const ratio = state.coordinates.width / state.coordinates.height;
+          cropper.setCoordinates({
+            ...state.coordinates,
+            height,
+            width: Math.round(height * ratio)
+          });
+        } else {
+          cropper.setCoordinates({
+            ...state.coordinates,
+            height
+          });
+        }
       }
     }
   };
@@ -60,11 +92,42 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
     if (cropper) {
       const canvas = cropper.getCanvas();
       if (canvas) {
-        canvas.toBlob((blob) => {
-          if (blob) {
-            onSave(blob);
-          }
-        }, 'image/jpeg', 0.9);
+        // Create a new canvas with background color
+        const bgCanvas = document.createElement('canvas');
+        bgCanvas.width = canvas.width;
+        bgCanvas.height = canvas.height;
+        const ctx = bgCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = backgroundColor;
+          ctx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+          ctx.drawImage(canvas, 0, 0);
+          bgCanvas.toBlob((blob) => {
+            if (blob) {
+              onSave(blob);
+            }
+          }, 'image/jpeg', 0.9);
+        }
+      }
+    }
+  };
+
+  const handleDownload = () => {
+    if (cropper) {
+      const canvas = cropper.getCanvas();
+      if (canvas) {
+        const bgCanvas = document.createElement('canvas');
+        bgCanvas.width = canvas.width;
+        bgCanvas.height = canvas.height;
+        const ctx = bgCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = backgroundColor;
+          ctx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+          ctx.drawImage(canvas, 0, 0);
+          const link = document.createElement('a');
+          link.download = `edited-image-${Date.now()}.jpg`;
+          link.href = bgCanvas.toDataURL('image/jpeg', 0.9);
+          link.click();
+        }
       }
     }
   };
@@ -102,14 +165,56 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
               imageTransform={{
                 rotate: rotation
               }}
+              backgroundProps={{
+                className: "bg-transparent"
+              }}
+              style={{
+                backgroundColor: backgroundColor
+              }}
             />
           </div>
 
           <div className="w-72 border-l bg-background p-6 flex flex-col gap-6 overflow-y-auto">
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Maximize2 className="h-4 w-4" />
-                Dimensions
+                <div className="h-4 w-4 rounded-full border" style={{ backgroundColor }} />
+                Background Color
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {['#ffffff', '#000000', '#f3f4f6', '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'].map(color => (
+                  <button
+                    key={color}
+                    className={`h-6 w-6 rounded-md border transition-transform hover:scale-110 ${backgroundColor === color ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                    style={{ backgroundColor: color }}
+                    onClick={() => setBackgroundColor(color)}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={backgroundColor}
+                  onChange={(e) => setBackgroundColor(e.target.value)}
+                  className="h-6 w-6 p-0 border-none cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Maximize2 className="h-4 w-4" />
+                  Dimensions
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    id="lock-ratio" 
+                    checked={lockAspectRatio} 
+                    onCheckedChange={(checked) => setLockAspectRatio(!!checked)} 
+                  />
+                  <Label htmlFor="lock-ratio" className="text-[10px] cursor-pointer">
+                    {lockAspectRatio ? <Lock className="h-3 w-3 inline mr-1" /> : <Unlock className="h-3 w-3 inline mr-1" />}
+                    Lock
+                  </Label>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -130,8 +235,9 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
                     <Input
                       type="number"
                       value={resize.height}
-                      readOnly
-                      className="h-8 pr-6 text-xs bg-muted/50"
+                      onChange={(e) => handleResizeHeight(e.target.value)}
+                      className={`h-8 pr-6 text-xs ${lockAspectRatio ? 'bg-muted/50' : ''}`}
+                      readOnly={lockAspectRatio}
                     />
                     <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">px</span>
                   </div>
@@ -164,7 +270,10 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
             
             <div className="mt-auto pt-6 flex flex-col gap-2">
               <Button onClick={handleSave} className="w-full">
-                Apply & Save
+                Apply & Save to Queue
+              </Button>
+              <Button onClick={handleDownload} variant="outline" className="w-full">
+                Download Now
               </Button>
               <Button variant="ghost" onClick={onClose} className="w-full">
                 Cancel
