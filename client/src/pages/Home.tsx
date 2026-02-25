@@ -207,6 +207,7 @@ export default function Home() {
                       <Dropzone 
                         onDrop={handleEditorDrop} 
                         isUploading={uploadMutation.isPending} 
+                        multi={false}
                       />
                     </div>
                   </div>

@@ -5,9 +5,10 @@ import { cn } from "@/lib/utils";
 interface DropzoneProps {
   onDrop: (files: File[]) => void;
   isUploading: boolean;
+  multi?: boolean;
 }
 
-export function Dropzone({ onDrop, isUploading }: DropzoneProps) {
+export function Dropzone({ onDrop, isUploading, multi = true }: DropzoneProps) {
   const [isDragActive, setIsDragActive] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -26,21 +27,23 @@ export function Dropzone({ onDrop, isUploading }: DropzoneProps) {
       setIsDragActive(false);
 
       if (e.dataTransfer.files?.length) {
-        onDrop(Array.from(e.dataTransfer.files));
+        const files = Array.from(e.dataTransfer.files);
+        onDrop(multi ? files : [files[0]]);
       }
     },
-    [onDrop],
+    [onDrop, multi],
   );
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files?.length) {
-        onDrop(Array.from(e.target.files));
+        const files = Array.from(e.target.files);
+        onDrop(multi ? files : [files[0]]);
         // Reset value so same file can be selected again
         e.target.value = "";
       }
     },
-    [onDrop],
+    [onDrop, multi],
   );
 
   return (
@@ -57,7 +60,7 @@ export function Dropzone({ onDrop, isUploading }: DropzoneProps) {
     >
       <input
         type="file"
-        multiple
+        multiple={multi}
         accept="image/*"
         onChange={handleFileSelect}
         className="absolute inset-0 cursor-pointer opacity-0 z-50"
@@ -83,7 +86,7 @@ export function Dropzone({ onDrop, isUploading }: DropzoneProps) {
         </div>
 
         <h3 className="mb-2 text-2xl font-bold tracking-tight font-display">
-          {isUploading ? "Uploading files..." : "Drop your images here"}
+          {isUploading ? "Uploading files..." : multi ? "Drop your images here" : "Drop your image here"}
         </h3>
         <p className="mb-6 max-w-sm text-sm text-muted-foreground">
           Supports JPG, PNG, WebP, AVIF, TIFF and more.

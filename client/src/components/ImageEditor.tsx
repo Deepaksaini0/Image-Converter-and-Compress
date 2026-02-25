@@ -154,24 +154,29 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
         </div>
 
         <div className="flex-1 flex overflow-hidden bg-zinc-950">
-          <div className="flex-1 relative">
-            <Cropper
-              src={image}
-              onChange={handleUpdate}
-              className="h-full"
-              stencilProps={{
-                aspectRatio: aspectRatio
-              }}
-              imageTransform={{
-                rotate: rotation
-              }}
-              backgroundProps={{
-                className: "bg-transparent"
-              }}
-              style={{
-                backgroundColor: backgroundColor
-              }}
-            />
+          <div className="flex-1 relative bg-zinc-900 flex items-center justify-center p-4">
+            <div 
+              className="relative shadow-2xl transition-all duration-300 flex items-center justify-center overflow-hidden"
+              style={{ backgroundColor, minWidth: '100px', minHeight: '100px' }}
+            >
+              <Cropper
+                src={image}
+                onChange={handleUpdate}
+                className="max-h-[70vh] w-full h-full"
+                stencilProps={{
+                  aspectRatio: aspectRatio
+                }}
+                imageTransform={{
+                  rotate: rotation
+                }}
+                backgroundProps={{
+                  className: "bg-transparent"
+                }}
+                style={{
+                  backgroundColor: backgroundColor
+                }}
+              />
+            </div>
           </div>
 
           <div className="w-72 border-l bg-background p-6 flex flex-col gap-6 overflow-y-auto">
