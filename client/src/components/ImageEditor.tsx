@@ -319,7 +319,6 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
           </div>
         </div>
       </DialogContent>
-      </DialogContent>
     </Dialog>
   );
 }
