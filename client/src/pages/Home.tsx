@@ -314,7 +314,11 @@ export default function Home() {
               >
                 {/* Upload Area */}
                 <section>
-                  <Dropzone onDrop={handleDrop} isUploading={uploadMutation.isPending} />
+                  <Dropzone 
+                    onDrop={mode === "editor" ? handleEditorDrop : handleDrop} 
+                    isUploading={uploadMutation.isPending} 
+                    multi={mode !== "editor"}
+                  />
                   <p className="text-sm text-muted-foreground mt-2">
                     {mode === "merge" ? "Select 2+ images to merge them together" : mode === "document" ? "Upload documents (XLSX, XLS, CSV, ODS, DOCX) to convert to PDF" : mode === "editor" ? "Upload an image to start editing" : "Upload images to convert or compress"}
                   </p>

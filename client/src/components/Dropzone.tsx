@@ -85,7 +85,7 @@ export function Dropzone({ onDrop, isUploading, multi = true }: DropzoneProps) {
           )}
         </div>
 
-        <h3 className="mb-2 text-2xl font-bold tracking-tight font-display">
+        <h3 className="mb-2 text-2xl font-bold tracking-tight font-display text-black">
           {isUploading ? "Uploading files..." : multi ? "Drop your images here" : "Drop your image here"}
         </h3>
         <p className="mb-6 max-w-sm text-sm text-muted-foreground">
