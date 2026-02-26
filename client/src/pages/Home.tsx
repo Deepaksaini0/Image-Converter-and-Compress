@@ -129,6 +129,14 @@ export default function Home() {
     }
   };
 
+  const handleReset = () => {
+    setUploadedFiles([]);
+    setResults(null);
+    setMergedResult(null);
+    setDocumentResult(null);
+    setZipUrl(null);
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (editingFile) return; // Let editor handle its own shortcuts
@@ -151,14 +159,6 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mode, editingFile, handleProcess, handleMerge, handleDocumentConvert]);
-
-  const handleReset = () => {
-    setUploadedFiles([]);
-    setResults(null);
-    setMergedResult(null);
-    setDocumentResult(null);
-    setZipUrl(null);
-  };
 
   const handleEditorDrop = async (files: File[]) => {
     try {
