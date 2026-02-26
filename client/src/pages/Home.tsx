@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UploadedFile, ConversionOptions, ProcessedResult, MergeOptions } from "@shared/schema";
 import { useUploadFiles, useProcessFiles, useMergeFiles, useDocumentConvert } from "@/hooks/use-converter";
 import { Dropzone } from "@/components/Dropzone";
@@ -41,29 +41,6 @@ export default function Home() {
 
   const [documentOutputFormat, setDocumentOutputFormat] = useState<string>("pdf");
   const [editingFile, setEditingFile] = useState<UploadedFile | null>(null);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (editingFile) return; // Let editor handle its own shortcuts
-
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          if (mode === 'convert') handleProcess();
-          else if (mode === 'merge') handleMerge();
-          else if (mode === 'document') handleDocumentConvert();
-        }
-      } else if (e.altKey) {
-        if (e.key === '1') setMode('convert');
-        else if (e.key === '2') setMode('merge');
-        else if (e.key === '3') setMode('editor');
-        else if (e.key === '4') setMode('document');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, editingFile, handleProcess, handleMerge, handleDocumentConvert]);
 
   const uploadMutation = useUploadFiles();
   const processMutation = useProcessFiles();
@@ -151,6 +128,29 @@ export default function Home() {
       // Handled by mutation hook
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (editingFile) return; // Let editor handle its own shortcuts
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (mode === 'convert') handleProcess();
+          else if (mode === 'merge') handleMerge();
+          else if (mode === 'document') handleDocumentConvert();
+        }
+      } else if (e.altKey) {
+        if (e.key === '1') setMode('convert');
+        else if (e.key === '2') setMode('merge');
+        else if (e.key === '3') setMode('editor');
+        else if (e.key === '4') setMode('document');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode, editingFile, handleProcess, handleMerge, handleDocumentConvert]);
 
   const handleReset = () => {
     setUploadedFiles([]);
