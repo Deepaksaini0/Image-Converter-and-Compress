@@ -42,6 +42,29 @@ export default function Home() {
   const [documentOutputFormat, setDocumentOutputFormat] = useState<string>("pdf");
   const [editingFile, setEditingFile] = useState<UploadedFile | null>(null);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (editingFile) return; // Let editor handle its own shortcuts
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (mode === 'convert') handleProcess();
+          else if (mode === 'merge') handleMerge();
+          else if (mode === 'document') handleDocumentConvert();
+        }
+      } else if (e.altKey) {
+        if (e.key === '1') setMode('convert');
+        else if (e.key === '2') setMode('merge');
+        else if (e.key === '3') setMode('editor');
+        else if (e.key === '4') setMode('document');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode, editingFile, handleProcess, handleMerge, handleDocumentConvert]);
+
   const uploadMutation = useUploadFiles();
   const processMutation = useProcessFiles();
   const mergeMutation = useMergeFiles();

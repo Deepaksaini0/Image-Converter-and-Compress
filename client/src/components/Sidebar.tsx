@@ -191,6 +191,7 @@ export function Sidebar({
           size="lg"
           onClick={onProcess}
           disabled={isProcessing || fileCount === 0}
+          title="Ctrl+Enter"
         >
           {isProcessing ? (
             <>Processing...</>
@@ -198,6 +199,7 @@ export function Sidebar({
             <>
               <Zap className="mr-2 h-4 w-4 fill-current" />
               Process {fileCount > 0 ? `${fileCount} Files` : ""}
+              <span className="ml-2 text-[10px] opacity-50 font-normal hidden sm:inline">(Ctrl+Enter)</span>
             </>
           )}
         </Button>

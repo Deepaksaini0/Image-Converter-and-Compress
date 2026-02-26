@@ -15,6 +15,10 @@ interface DocumentControlsProps {
 export function DocumentControls({ outputFormat, onFormatChange }: DocumentControlsProps) {
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-black">Document Options</h3>
+        <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded">Ctrl+Enter to Convert</span>
+      </div>
       <div className="space-y-2">
         <Label htmlFor="output-format">Output Format</Label>
         <Select value={outputFormat} onValueChange={onFormatChange}>

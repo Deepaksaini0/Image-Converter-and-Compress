@@ -22,6 +22,10 @@ export function MergeControls({ options, setOptions }: MergeControlsProps) {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-black">Merge Options</h3>
+        <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded">Ctrl+Enter to Merge</span>
+      </div>
       {/* Direction */}
       <div className="space-y-2">
         <Label htmlFor="merge-direction">Merge Direction</Label>

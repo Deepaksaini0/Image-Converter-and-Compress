@@ -132,6 +132,27 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 's') {
+          e.preventDefault();
+          handleSave();
+        } else if (e.key === 'd') {
+          e.preventDefault();
+          handleDownload();
+        }
+      } else if (e.key === 'r') {
+        handleRotate();
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave, handleDownload, handleRotate, onClose]);
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] w-[1200px] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-background">
@@ -147,15 +168,15 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleDownload} className="gap-2">
+            <Button variant="outline" size="sm" onClick={handleDownload} className="gap-2" title="Ctrl+D">
               <Download className="h-4 w-4" />
               Download
             </Button>
-            <Button size="sm" onClick={handleSave} className="gap-2">
+            <Button size="sm" onClick={handleSave} className="gap-2" title="Ctrl+S">
               <Check className="h-4 w-4" />
               Apply Changes
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} title="Esc">
               <X className="h-4 w-4" />
             </Button>
           </div>
