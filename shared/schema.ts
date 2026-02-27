@@ -7,7 +7,7 @@ import { z } from "zod";
 
 export const formats = [
   "jpeg", "png", "webp", "avif", "tiff", "gif", 
-  "bmp", "ico", "jp2", "heif", "jxl" // Sharp supports these (some depend on libvips)
+  "bmp", "ico", "jp2", "heif", "jxl", "svg" // Added svg
 ] as const;
 
 export const mergeDirections = ["horizontal", "vertical", "grid"] as const;

@@ -8,6 +8,11 @@ import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
+// @ts-ignore
+import potrace from "potrace";
+import { promisify } from "util";
+
+const trace = promisify(potrace.trace);
 import { api } from "@shared/routes";
 import {
   conversionOptionsSchema,
@@ -47,7 +52,10 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 200 * 1024 * 1024 } // Increased limit to 200MB
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -402,8 +410,16 @@ ${Array.from(visited).map(page => {
         let outputBuffer: Buffer;
         let finalQuality = options.quality;
 
-        // Smart Compression (Binary Search)
-        if (options.targetSizeKB) {
+        if (format === 'svg' as any) {
+          try {
+            const pngBuffer = await pipeline.toFormat('png').toBuffer();
+            const svgContent = await trace(pngBuffer);
+            outputBuffer = Buffer.from(svgContent);
+          } catch (e) {
+            console.error("SVG tracing error:", e);
+            outputBuffer = await pipeline.toFormat('png').toBuffer();
+          }
+        } else if (options.targetSizeKB) {
           const targetBytes = options.targetSizeKB * 1024;
           let minQ = 1;
           let maxQ = 100;
