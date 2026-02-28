@@ -92,8 +92,7 @@ export async function registerRoutes(
       if (!title) return res.status(400).json({ error: "Title is required" });
 
       const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+        apiKey: process.env.REPLIT_AI_MODEL_KEY,
       });
 
       const response = await openai.chat.completions.create({
