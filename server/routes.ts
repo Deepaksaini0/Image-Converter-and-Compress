@@ -86,6 +86,111 @@ export async function registerRoutes(
     }
   });
 
+  // Page Speed Analyzer
+  app.post("/api/seo/page-speed", async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) return res.status(400).json({ error: "URL is required" });
+      let fullUrl = url;
+      if (!fullUrl.startsWith("http")) fullUrl = "https://" + fullUrl;
+
+      const start = Date.now();
+      const response = await axios.get(fullUrl, {
+        timeout: 15000,
+        maxRedirects: 5,
+        validateStatus: () => true,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; PageSpeedBot/1.0)", "Accept-Encoding": "gzip, deflate, br" },
+        responseType: "text",
+      });
+      const ttfb = Date.now() - start;
+
+      const html: string = response.data || "";
+      const htmlSize = Buffer.byteLength(html, "utf8");
+
+      // Count resources
+      const scriptMatches = html.match(/<script[^>]+src=/gi) || [];
+      const styleMatches = html.match(/<link[^>]+stylesheet/gi) || [];
+      const imgMatches = html.match(/<img[^>]+src=/gi) || [];
+      const iframeMatches = html.match(/<iframe[^>]+src=/gi) || [];
+
+      const headers = response.headers;
+      const isCompressed = !!(headers["content-encoding"] && /gzip|br|deflate/.test(String(headers["content-encoding"])));
+      const hasCache = !!(headers["cache-control"] || headers["expires"]);
+      const cacheControl = String(headers["cache-control"] || "");
+      const isHttps = fullUrl.startsWith("https://");
+      const hasXRobots = !!headers["x-robots-tag"];
+      const contentType = String(headers["content-type"] || "");
+      const isHtml = contentType.includes("text/html");
+      const server = String(headers["server"] || "Unknown");
+      const hasHsts = !!headers["strict-transport-security"];
+
+      // Extract meta info
+      const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+      const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)/i) || html.match(/<meta[^>]+content=["']([^"']*)[^>]+name=["']description["']/i);
+      const canonicalMatch = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']*)/i);
+      const viewportMatch = html.match(/<meta[^>]+name=["']viewport["']/i);
+      const h1Matches = html.match(/<h1[^>]*>/gi) || [];
+
+      const title = titleMatch ? titleMatch[1].trim() : null;
+      const description = descMatch ? descMatch[1].trim() : null;
+      const canonical = canonicalMatch ? canonicalMatch[1].trim() : null;
+      const hasViewport = !!viewportMatch;
+      const h1Count = h1Matches.length;
+
+      // Performance score calculation
+      const issues: { type: "error" | "warning" | "info"; message: string; impact: string }[] = [];
+      let scorePenalty = 0;
+
+      if (ttfb > 1500) { issues.push({ type: "error", message: `Slow TTFB: ${ttfb}ms (target < 600ms)`, impact: "High impact on Core Web Vitals" }); scorePenalty += 25; }
+      else if (ttfb > 600) { issues.push({ type: "warning", message: `Moderate TTFB: ${ttfb}ms (target < 600ms)`, impact: "Moderate impact on Core Web Vitals" }); scorePenalty += 10; }
+
+      if (!isCompressed) { issues.push({ type: "error", message: "No compression detected (gzip/brotli)", impact: "Can reduce transfer size by 60-80%" }); scorePenalty += 20; }
+      if (!hasCache) { issues.push({ type: "warning", message: "No cache-control headers found", impact: "Repeat visitors re-download resources" }); scorePenalty += 10; }
+      if (!isHttps) { issues.push({ type: "error", message: "Page not served over HTTPS", impact: "Security risk + Google ranking penalty" }); scorePenalty += 15; }
+      if (!hasHsts) { issues.push({ type: "warning", message: "HSTS header missing", impact: "Reduced HTTPS security" }); scorePenalty += 5; }
+      if (scriptMatches.length > 10) { issues.push({ type: "warning", message: `${scriptMatches.length} external scripts detected`, impact: "Each script blocks rendering" }); scorePenalty += 10; }
+      if (styleMatches.length > 5) { issues.push({ type: "warning", message: `${styleMatches.length} external stylesheets detected`, impact: "Render-blocking resources" }); scorePenalty += 5; }
+      if (htmlSize > 100000) { issues.push({ type: "warning", message: `Large HTML size: ${Math.round(htmlSize / 1024)}KB`, impact: "Consider minification" }); scorePenalty += 5; }
+      if (!hasViewport) { issues.push({ type: "error", message: "No viewport meta tag found", impact: "Not mobile-friendly" }); scorePenalty += 15; }
+      if (!title) { issues.push({ type: "error", message: "No <title> tag found", impact: "Critical for SEO" }); scorePenalty += 10; }
+      if (title && title.length > 60) { issues.push({ type: "warning", message: `Title too long: ${title.length} chars (max 60)`, impact: "May be truncated in search results" }); scorePenalty += 5; }
+      if (!description) { issues.push({ type: "warning", message: "No meta description found", impact: "Missed CTR opportunity in search results" }); scorePenalty += 5; }
+      if (h1Count === 0) { issues.push({ type: "error", message: "No <h1> tag found", impact: "Critical for SEO structure" }); scorePenalty += 10; }
+      if (h1Count > 1) { issues.push({ type: "warning", message: `Multiple <h1> tags (${h1Count})`, impact: "Only one H1 recommended per page" }); scorePenalty += 5; }
+
+      if (issues.length === 0) issues.push({ type: "info", message: "No issues detected — great job!", impact: "Page looks well-optimized" });
+
+      const score = Math.max(0, Math.min(100, 100 - scorePenalty));
+
+      res.json({
+        url: fullUrl,
+        ttfb,
+        htmlSize,
+        htmlSizeKb: Math.round(htmlSize / 1024),
+        status: response.status,
+        isCompressed,
+        hasCache,
+        cacheControl,
+        isHttps,
+        hasHsts,
+        server,
+        scriptCount: scriptMatches.length,
+        styleCount: styleMatches.length,
+        imageCount: imgMatches.length,
+        iframeCount: iframeMatches.length,
+        hasViewport,
+        title,
+        description,
+        canonical,
+        h1Count,
+        score,
+        issues,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to analyze page: " + err.message });
+    }
+  });
+
   // HTTP Header Checker
   app.post("/api/seo/http-headers", async (req, res) => {
     try {

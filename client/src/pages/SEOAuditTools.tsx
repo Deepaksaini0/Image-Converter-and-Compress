@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ArrowLeft, Search, FileCode, BarChart3, Loader2, Globe, Share2,
   Link2, Star, BookOpen, CheckCircle, XCircle, AlertTriangle, TrendingUp,
-  Code2, Tag, ArrowRight, Server
+  Code2, Tag, ArrowRight, Server, Zap, Image, FileText, MonitorSmartphone
 } from "lucide-react";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -84,6 +84,18 @@ export default function SEOAuditTools() {
   // Redirect Chain Checker State
   const [redirectUrl, setRedirectUrl] = useState("");
   const [redirectChain, setRedirectChain] = useState<{ chain: { url: string; status: number; statusText: string }[]; redirectCount: number } | null>(null);
+
+  // Page Speed Analyzer State
+  const [pageSpeedUrl, setPageSpeedUrl] = useState("");
+  const [pageSpeedResult, setPageSpeedResult] = useState<{
+    url: string; ttfb: number; htmlSize: number; htmlSizeKb: number;
+    status: number; isCompressed: boolean; hasCache: boolean; cacheControl: string;
+    isHttps: boolean; hasHsts: boolean; server: string;
+    scriptCount: number; styleCount: number; imageCount: number; iframeCount: number;
+    hasViewport: boolean; title: string | null; description: string | null;
+    canonical: string | null; h1Count: number; score: number;
+    issues: { type: "error" | "warning" | "info"; message: string; impact: string }[];
+  } | null>(null);
 
   const schemaTypes: Record<string, { label: string; fields: { key: string; label: string; placeholder: string }[] }> = {
     Article: {
@@ -203,6 +215,23 @@ export default function SEOAuditTools() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setHeaderResult(data);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally { setIsLoading(false); }
+  };
+
+  const analyzePageSpeed = async () => {
+    if (!pageSpeedUrl) return;
+    setIsLoading(true);
+    setPageSpeedResult(null);
+    try {
+      const res = await fetch("/api/seo/page-speed", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: pageSpeedUrl }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setPageSpeedResult(data);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally { setIsLoading(false); }
@@ -360,6 +389,7 @@ export default function SEOAuditTools() {
             <TabsTrigger value="schema" className="flex items-center gap-1.5 text-xs"><Code2 className="h-3 w-3" />Schema</TabsTrigger>
             <TabsTrigger value="http-headers" className="flex items-center gap-1.5 text-xs"><Server className="h-3 w-3" />HTTP Headers</TabsTrigger>
             <TabsTrigger value="redirects" className="flex items-center gap-1.5 text-xs"><ArrowRight className="h-3 w-3" />Redirects</TabsTrigger>
+            <TabsTrigger value="page-speed" className="flex items-center gap-1.5 text-xs"><Zap className="h-3 w-3" />Page Speed</TabsTrigger>
           </TabsList>
 
           {/* ─── Sitemap ─── */}
@@ -850,6 +880,138 @@ export default function SEOAuditTools() {
                   </CardContent>
                 </Card>
               )}
+            </div>
+          </TabsContent>
+          {/* ─── Page Speed Analyzer ─── */}
+          <TabsContent value="page-speed">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2"><Zap className="h-5 w-5 text-primary" />Page Speed Analyzer</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">Analyze TTFB, compression, caching, SEO signals, and resource counts</p>
+                  </div>
+                  <Button onClick={analyzePageSpeed} disabled={isLoading || !pageSpeedUrl} className="min-w-[140px]">
+                    {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Analyzing...</> : <><Zap className="h-4 w-4 mr-2" />Analyze Page</>}
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <Input placeholder="https://example.com" value={pageSpeedUrl} onChange={(e) => setPageSpeedUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && analyzePageSpeed()} />
+                </CardContent>
+              </Card>
+
+              {pageSpeedResult && (() => {
+                const s = pageSpeedResult;
+                const scoreColor = s.score >= 80 ? "text-green-600" : s.score >= 50 ? "text-yellow-600" : "text-red-600";
+                const scoreRing = s.score >= 80 ? "stroke-green-500" : s.score >= 50 ? "stroke-yellow-500" : "stroke-red-500";
+                const ttfbColor = s.ttfb < 600 ? "text-green-600" : s.ttfb < 1500 ? "text-yellow-600" : "text-red-600";
+                const circumference = 2 * Math.PI * 44;
+                const dashOffset = circumference - (s.score / 100) * circumference;
+
+                return (
+                  <div className="space-y-6">
+                    {/* Score + Key Metrics */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <Card className="md:col-span-1 flex flex-col items-center justify-center p-6">
+                        <svg width="110" height="110" className="-rotate-90">
+                          <circle cx="55" cy="55" r="44" fill="none" stroke="currentColor" strokeWidth="8" className="text-muted/30" />
+                          <circle cx="55" cy="55" r="44" fill="none" strokeWidth="8" strokeDasharray={circumference} strokeDashoffset={dashOffset} strokeLinecap="round" className={`transition-all duration-700 ${scoreRing}`} />
+                        </svg>
+                        <div className="mt-2 text-center">
+                          <p className={`text-4xl font-black ${scoreColor}`}>{s.score}</p>
+                          <p className="text-xs text-muted-foreground font-semibold mt-0.5">SEO Score</p>
+                        </div>
+                      </Card>
+
+                      <div className="md:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {[
+                          { label: "TTFB", value: `${s.ttfb}ms`, color: ttfbColor, icon: <Zap className="h-4 w-4" />, sub: s.ttfb < 600 ? "Excellent" : s.ttfb < 1500 ? "Moderate" : "Slow" },
+                          { label: "HTML Size", value: `${s.htmlSizeKb}KB`, color: s.htmlSizeKb < 50 ? "text-green-600" : s.htmlSizeKb < 100 ? "text-yellow-600" : "text-red-600", icon: <FileText className="h-4 w-4" />, sub: s.htmlSizeKb < 50 ? "Good" : s.htmlSizeKb < 100 ? "Moderate" : "Large" },
+                          { label: "Compression", value: s.isCompressed ? "Enabled" : "None", color: s.isCompressed ? "text-green-600" : "text-red-600", icon: <Server className="h-4 w-4" />, sub: s.isCompressed ? "gzip/brotli" : "Missing!" },
+                          { label: "HTTPS", value: s.isHttps ? "Yes" : "No", color: s.isHttps ? "text-green-600" : "text-red-600", icon: <CheckCircle className="h-4 w-4" />, sub: s.isHttps ? "Secure" : "Not Secure" },
+                          { label: "Cache", value: s.hasCache ? "Yes" : "None", color: s.hasCache ? "text-green-600" : "text-yellow-600", icon: <BarChart3 className="h-4 w-4" />, sub: s.hasCache ? s.cacheControl.slice(0, 20) || "Present" : "Missing" },
+                          { label: "Mobile Ready", value: s.hasViewport ? "Yes" : "No", color: s.hasViewport ? "text-green-600" : "text-red-600", icon: <MonitorSmartphone className="h-4 w-4" />, sub: s.hasViewport ? "Viewport set" : "No viewport!" },
+                        ].map(({ label, value, color, icon, sub }) => (
+                          <div key={label} className="p-3 rounded-xl border bg-card flex flex-col gap-1">
+                            <div className={`flex items-center gap-1.5 text-xs font-semibold text-muted-foreground`}>{icon}{label}</div>
+                            <p className={`text-xl font-black ${color}`}>{value}</p>
+                            <p className="text-[10px] text-muted-foreground">{sub}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Resources + SEO Signals */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card>
+                        <CardHeader><CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4 text-primary" />Resource Counts</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                          {[
+                            { label: "External Scripts", count: s.scriptCount, warn: 10, icon: <Code2 className="h-4 w-4 text-blue-500" /> },
+                            { label: "Stylesheets", count: s.styleCount, warn: 5, icon: <FileCode className="h-4 w-4 text-purple-500" /> },
+                            { label: "Images", count: s.imageCount, warn: 30, icon: <Image className="h-4 w-4 text-green-500" /> },
+                            { label: "iFrames", count: s.iframeCount, warn: 2, icon: <Globe className="h-4 w-4 text-orange-500" /> },
+                          ].map(({ label, count, warn, icon }) => (
+                            <div key={label} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                              <div className="flex items-center gap-2 text-sm">{icon}{label}</div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 h-2 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-primary/60 transition-all" style={{ width: `${Math.min(100, (count / (warn * 1.5)) * 100)}%` }} /></div>
+                                <span className={`text-sm font-bold min-w-[2rem] text-right ${count > warn ? "text-red-500" : "text-green-600"}`}>{count}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Search className="h-4 w-4 text-primary" />SEO Signals</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                          {[
+                            { label: "Title Tag", value: s.title ? `"${s.title.slice(0, 40)}${s.title.length > 40 ? "…" : ""}"` : "Missing", ok: !!s.title },
+                            { label: "Meta Description", value: s.description ? `"${s.description.slice(0, 40)}${s.description.length > 40 ? "…" : ""}"` : "Missing", ok: !!s.description },
+                            { label: "Canonical URL", value: s.canonical ? "Present" : "Not found", ok: !!s.canonical },
+                            { label: "H1 Tag", value: s.h1Count === 1 ? "1 (Perfect)" : s.h1Count === 0 ? "Missing" : `${s.h1Count} (Too many)`, ok: s.h1Count === 1 },
+                            { label: "HSTS", value: s.hasHsts ? "Enabled" : "Missing", ok: s.hasHsts },
+                            { label: "Server", value: s.server, ok: true },
+                          ].map(({ label, value, ok }) => (
+                            <div key={label} className="flex items-center justify-between gap-2 py-1.5 border-b last:border-0">
+                              <div className="flex items-center gap-2 text-sm font-medium min-w-0">
+                                {ok ? <CheckCircle className="h-3.5 w-3.5 text-green-500 flex-shrink-0" /> : <XCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />}
+                                {label}
+                              </div>
+                              <span className="text-xs text-muted-foreground truncate max-w-[160px] text-right">{value}</span>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Issues */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-3">
+                          <AlertTriangle className="h-4 w-4 text-primary" />Issues & Recommendations
+                          <div className="flex gap-2 text-xs">
+                            <Badge className="bg-red-100 text-red-700">{pageSpeedResult.issues.filter(i => i.type === "error").length} errors</Badge>
+                            <Badge className="bg-yellow-100 text-yellow-700">{pageSpeedResult.issues.filter(i => i.type === "warning").length} warnings</Badge>
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {s.issues.map((issue, i) => (
+                          <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border ${issue.type === "error" ? "bg-red-50 border-red-200" : issue.type === "warning" ? "bg-yellow-50 border-yellow-200" : "bg-green-50 border-green-200"}`}>
+                            {issue.type === "error" ? <XCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" /> : issue.type === "warning" ? <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" /> : <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />}
+                            <div>
+                              <p className={`text-sm font-medium ${issue.type === "error" ? "text-red-800" : issue.type === "warning" ? "text-yellow-800" : "text-green-800"}`}>{issue.message}</p>
+                              <p className={`text-xs mt-0.5 ${issue.type === "error" ? "text-red-600" : issue.type === "warning" ? "text-yellow-600" : "text-green-600"}`}>{issue.impact}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })()}
             </div>
           </TabsContent>
         </Tabs>
