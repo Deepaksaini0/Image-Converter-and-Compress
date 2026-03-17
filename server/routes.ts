@@ -23,6 +23,9 @@ import {
   insertReviewSchema,
 } from "@shared/schema";
 import { storage as dbStorage } from "./storage";
+import { db } from "./db";
+import { rankChecks } from "../shared/schema";
+import { eq, and, gte, desc } from "drizzle-orm";
 import { z } from "zod";
 import CleanCSS from "clean-css";
 import beautify from "js-beautify";
@@ -188,6 +191,88 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       res.status(500).json({ error: "Failed to analyze page: " + err.message });
+    }
+  });
+
+  // Rank Check — search Bing for keyword, find URL position, save to DB
+  app.post("/api/seo/rank-check", async (req, res) => {
+    try {
+      const { url, keyword } = req.body;
+      if (!url || !keyword) return res.status(400).json({ error: "URL and keyword are required" });
+
+      let domain = url;
+      if (!domain.startsWith("http")) domain = "https://" + domain;
+      const hostname = new URL(domain).hostname.replace(/^www\./, "");
+
+      const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(keyword)}&count=50&first=1`;
+      const r = await axios.get(searchUrl, {
+        timeout: 12000,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      });
+
+      const html: string = r.data || "";
+      // Extract result URLs from Bing
+      const linkRegex = /href="(https?:\/\/[^"]+)"/g;
+      const allLinks: string[] = [];
+      let m: RegExpExecArray | null;
+      while ((m = linkRegex.exec(html)) !== null) {
+        const href = m[1];
+        if (href.includes("bing.com") || href.includes("microsoft.com") || href.includes("msn.com")) continue;
+        if (href.startsWith("http") && !allLinks.includes(href)) allLinks.push(href);
+      }
+
+      // Deduplicate by domain, keep first occurrence per domain
+      const seenDomains = new Set<string>();
+      const results: string[] = [];
+      for (const link of allLinks) {
+        try {
+          const h = new URL(link).hostname.replace(/^www\./, "");
+          if (!seenDomains.has(h)) { seenDomains.add(h); results.push(link); }
+        } catch {}
+        if (results.length >= 100) break;
+      }
+
+      let position: number | null = null;
+      for (let i = 0; i < results.length; i++) {
+        try {
+          const h = new URL(results[i]).hostname.replace(/^www\./, "");
+          if (h === hostname || h.includes(hostname) || hostname.includes(h)) {
+            position = i + 1;
+            break;
+          }
+        } catch {}
+      }
+
+      // Save to DB
+      await db.insert(rankChecks).values({ url: hostname, keyword, position });
+
+      res.json({ url: hostname, keyword, position, checkedAt: new Date().toISOString(), totalScanned: results.length });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to check ranking: " + err.message });
+    }
+  });
+
+  // Rank History — return last 45 days of checks for a url+keyword
+  app.get("/api/seo/rank-history", async (req, res) => {
+    try {
+      const { url, keyword } = req.query as { url: string; keyword: string };
+      if (!url || !keyword) return res.status(400).json({ error: "url and keyword are required" });
+
+      const since = new Date();
+      since.setDate(since.getDate() - 45);
+
+      const rows = await db
+        .select()
+        .from(rankChecks)
+        .where(and(eq(rankChecks.url, url), eq(rankChecks.keyword, keyword), gte(rankChecks.checkedAt, since)))
+        .orderBy(desc(rankChecks.checkedAt));
+
+      res.json({ history: rows });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 

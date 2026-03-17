@@ -110,6 +110,19 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 
+// Rank Checks table
+export const rankChecks = pgTable("rank_checks", {
+  id: serial("id").primaryKey(),
+  url: text("url").notNull(),
+  keyword: text("keyword").notNull(),
+  position: integer("position"),
+  checkedAt: timestamp("checked_at").defaultNow().notNull(),
+});
+
+export const insertRankCheckSchema = createInsertSchema(rankChecks).omit({ id: true, checkedAt: true });
+export type RankCheck = typeof rankChecks.$inferSelect;
+export type InsertRankCheck = z.infer<typeof insertRankCheckSchema>;
+
 // Document formats
 export const documentInputFormats = ["xlsx", "xls", "csv", "ods", "docx", "pdf"] as const;
 export const documentOutputFormats = ["pdf", "xlsx", "csv", "docx"] as const;

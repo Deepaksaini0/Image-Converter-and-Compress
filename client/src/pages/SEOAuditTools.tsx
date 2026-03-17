@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ArrowLeft, Search, FileCode, BarChart3, Loader2, Globe, Share2,
   Link2, Star, BookOpen, CheckCircle, XCircle, AlertTriangle, TrendingUp,
-  Code2, Tag, ArrowRight, Server, Zap, Image, FileText, MonitorSmartphone
+  Code2, Tag, ArrowRight, Server, Zap, Image, FileText, MonitorSmartphone,
+  TrendingDown, Trophy, RefreshCw
 } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -84,6 +86,12 @@ export default function SEOAuditTools() {
   // Redirect Chain Checker State
   const [redirectUrl, setRedirectUrl] = useState("");
   const [redirectChain, setRedirectChain] = useState<{ chain: { url: string; status: number; statusText: string }[]; redirectCount: number } | null>(null);
+
+  // Rank Tracker State
+  const [rankUrl, setRankUrl] = useState("");
+  const [rankKeyword, setRankKeyword] = useState("");
+  const [rankResult, setRankResult] = useState<{ url: string; keyword: string; position: number | null; checkedAt: string; totalScanned: number } | null>(null);
+  const [rankHistory, setRankHistory] = useState<{ id: number; url: string; keyword: string; position: number | null; checkedAt: string }[]>([]);
 
   // Page Speed Analyzer State
   const [pageSpeedUrl, setPageSpeedUrl] = useState("");
@@ -215,6 +223,33 @@ export default function SEOAuditTools() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setHeaderResult(data);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally { setIsLoading(false); }
+  };
+
+  const fetchRankHistory = async (url: string, keyword: string) => {
+    try {
+      const res = await fetch(`/api/seo/rank-history?url=${encodeURIComponent(url)}&keyword=${encodeURIComponent(keyword)}`);
+      const data = await res.json();
+      if (data.history) setRankHistory(data.history);
+    } catch {}
+  };
+
+  const checkRanking = async () => {
+    if (!rankUrl || !rankKeyword) return;
+    setIsLoading(true);
+    setRankResult(null);
+    try {
+      const res = await fetch("/api/seo/rank-check", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: rankUrl, keyword: rankKeyword }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setRankResult(data);
+      await fetchRankHistory(data.url, data.keyword);
+      toast({ title: data.position ? `Ranked #${data.position} on Bing` : "Not found in top results" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally { setIsLoading(false); }
@@ -390,6 +425,7 @@ export default function SEOAuditTools() {
             <TabsTrigger value="http-headers" className="flex items-center gap-1.5 text-xs"><Server className="h-3 w-3" />HTTP Headers</TabsTrigger>
             <TabsTrigger value="redirects" className="flex items-center gap-1.5 text-xs"><ArrowRight className="h-3 w-3" />Redirects</TabsTrigger>
             <TabsTrigger value="page-speed" className="flex items-center gap-1.5 text-xs"><Zap className="h-3 w-3" />Page Speed</TabsTrigger>
+            <TabsTrigger value="rank-tracker" className="flex items-center gap-1.5 text-xs"><Trophy className="h-3 w-3" />Rank Tracker</TabsTrigger>
           </TabsList>
 
           {/* ─── Sitemap ─── */}
@@ -882,6 +918,177 @@ export default function SEOAuditTools() {
               )}
             </div>
           </TabsContent>
+          {/* ─── Rank Tracker ─── */}
+          <TabsContent value="rank-tracker">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2"><Trophy className="h-5 w-5 text-primary" />Google / Bing Rank Tracker</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">Check where your page ranks for a keyword and track position over 45 days</p>
+                  </div>
+                  <Button onClick={checkRanking} disabled={isLoading || !rankUrl || !rankKeyword} className="min-w-[140px]">
+                    {isLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Checking...</> : <><Search className="h-4 w-4 mr-2" />Check Rank</>}
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Website URL or Domain</Label>
+                    <Input placeholder="example.com" value={rankUrl} onChange={(e) => setRankUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && checkRanking()} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Keyword to Check</Label>
+                    <Input placeholder="e.g. best image converter tool" value={rankKeyword} onChange={(e) => setRankKeyword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && checkRanking()} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {rankResult && (() => {
+                const pos = rankResult.position;
+                const posColor = !pos ? "text-muted-foreground" : pos <= 3 ? "text-green-600" : pos <= 10 ? "text-yellow-600" : pos <= 30 ? "text-orange-500" : "text-red-600";
+                const posLabel = !pos ? "Not Found" : pos <= 3 ? "Top 3 — Excellent!" : pos <= 10 ? "Page 1 — Great!" : pos <= 30 ? "Page 2–3" : "Low Ranking";
+                const posDesc = !pos ? `Not found in top ${rankResult.totalScanned} results` : `Position #${pos} out of ${rankResult.totalScanned} scanned results`;
+
+                const chartData = [...rankHistory].reverse().map((r, i) => ({
+                  day: new Date(r.checkedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+                  position: r.position,
+                  label: r.position ? `#${r.position}` : "NF",
+                }));
+
+                const bestPos = rankHistory.reduce((b, r) => r.position && (!b || r.position < b) ? r.position : b, null as number | null);
+                const worstPos = rankHistory.reduce((b, r) => r.position && (!b || r.position > b) ? r.position : b, null as number | null);
+
+                return (
+                  <div className="space-y-6">
+                    {/* Current Rank Card */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <Card className="sm:col-span-1 flex flex-col items-center justify-center p-8 text-center">
+                        <Trophy className={`h-8 w-8 mb-2 ${posColor}`} />
+                        <p className={`text-6xl font-black ${posColor}`}>{pos ? `#${pos}` : "—"}</p>
+                        <p className={`text-sm font-semibold mt-2 ${posColor}`}>{posLabel}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{posDesc}</p>
+                      </Card>
+
+                      <div className="sm:col-span-2 grid grid-cols-2 gap-4">
+                        <Card className="p-4 flex flex-col gap-1">
+                          <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1"><Globe className="h-3 w-3" />Domain</p>
+                          <p className="font-bold text-lg truncate">{rankResult.url}</p>
+                        </Card>
+                        <Card className="p-4 flex flex-col gap-1">
+                          <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1"><Search className="h-3 w-3" />Keyword</p>
+                          <p className="font-bold text-lg truncate">{rankResult.keyword}</p>
+                        </Card>
+                        <Card className="p-4 flex flex-col gap-1">
+                          <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1"><TrendingUp className="h-3 w-3 text-green-500" />Best Position (45d)</p>
+                          <p className="font-black text-2xl text-green-600">{bestPos ? `#${bestPos}` : "—"}</p>
+                        </Card>
+                        <Card className="p-4 flex flex-col gap-1">
+                          <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1"><TrendingDown className="h-3 w-3 text-red-500" />Worst Position (45d)</p>
+                          <p className="font-black text-2xl text-red-500">{worstPos ? `#${worstPos}` : "—"}</p>
+                        </Card>
+                      </div>
+                    </div>
+
+                    {/* 45-Day Chart */}
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4 text-primary" />Ranking History — Last 45 Days
+                          <Badge variant="outline" className="text-xs">{rankHistory.length} checks</Badge>
+                        </CardTitle>
+                        <Button variant="outline" size="sm" onClick={() => fetchRankHistory(rankResult.url, rankResult.keyword)} className="gap-1.5 text-xs">
+                          <RefreshCw className="h-3 w-3" />Refresh
+                        </Button>
+                      </CardHeader>
+                      <CardContent>
+                        {chartData.length >= 2 ? (
+                          <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                                <YAxis reversed tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" domain={["auto", "auto"]} tickFormatter={(v) => `#${v}`} />
+                                <Tooltip
+                                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
+                                  formatter={(v: any) => [`Position #${v}`, "Rank"]}
+                                />
+                                {pos && <ReferenceLine y={pos} stroke="hsl(var(--primary))" strokeDasharray="4 2" label={{ value: "Now", position: "insideRight", fontSize: 10 }} />}
+                                <Line type="monotone" dataKey="position" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(var(--primary))" }} activeDot={{ r: 6 }} connectNulls={false} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                            <p className="text-xs text-muted-foreground text-center mt-2">Lower position = higher ranking. Check regularly to track trends.</p>
+                          </div>
+                        ) : (
+                          <div className="h-40 flex flex-col items-center justify-center gap-3 text-center">
+                            <BarChart3 className="h-10 w-10 text-muted-foreground/30" />
+                            <div>
+                              <p className="text-sm font-medium">Not enough data for chart yet</p>
+                              <p className="text-xs text-muted-foreground mt-1">Check the same keyword a few more times — each check is saved and builds your 45-day history</p>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Check History Table */}
+                    {rankHistory.length > 0 && (
+                      <Card>
+                        <CardHeader><CardTitle className="text-base">Check History</CardTitle></CardHeader>
+                        <CardContent className="p-0">
+                          <ScrollArea className="h-56">
+                            <table className="w-full text-sm">
+                              <thead className="sticky top-0 bg-muted/50">
+                                <tr className="border-b">
+                                  <th className="text-left p-3 font-semibold">Date</th>
+                                  <th className="text-left p-3 font-semibold">Keyword</th>
+                                  <th className="text-center p-3 font-semibold">Position</th>
+                                  <th className="text-center p-3 font-semibold">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rankHistory.map((r, i) => (
+                                  <tr key={r.id} className={`border-b last:border-0 ${i === 0 ? "bg-primary/5" : ""}`}>
+                                    <td className="p-3 text-muted-foreground text-xs">{new Date(r.checkedAt).toLocaleString()}</td>
+                                    <td className="p-3 font-medium truncate max-w-[160px]">{r.keyword}</td>
+                                    <td className="p-3 text-center">
+                                      <span className={`font-black ${!r.position ? "text-muted-foreground" : r.position <= 3 ? "text-green-600" : r.position <= 10 ? "text-yellow-600" : "text-orange-500"}`}>
+                                        {r.position ? `#${r.position}` : "NF"}
+                                      </span>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                      <Badge className={`text-xs ${!r.position ? "bg-muted text-muted-foreground" : r.position <= 3 ? "bg-green-100 text-green-700" : r.position <= 10 ? "bg-yellow-100 text-yellow-700" : "bg-orange-100 text-orange-700"}`}>
+                                        {!r.position ? "Not Found" : r.position <= 3 ? "Top 3" : r.position <= 10 ? "Page 1" : `Page ${Math.ceil(r.position / 10)}`}
+                                      </Badge>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </ScrollArea>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* SEO Tips based on position */}
+                    <Card className="bg-blue-50 border-blue-200">
+                      <CardContent className="p-4">
+                        <h4 className="font-semibold text-sm text-blue-800 mb-3 flex items-center gap-1.5"><TrendingUp className="h-4 w-4" />Ranking Improvement Tips</h4>
+                        <div className="space-y-2 text-sm text-blue-700">
+                          {(!pos || pos > 30) && <p>• Your page isn't ranking well. Focus on on-page SEO: optimize title, H1, and meta description for this keyword.</p>}
+                          {pos && pos > 10 && pos <= 30 && <p>• You're on page 2–3. Build quality backlinks and improve content depth to break into page 1.</p>}
+                          {pos && pos > 3 && pos <= 10 && <p>• You're on page 1! Add structured data (FAQ schema), improve click-through rate with a compelling title and description.</p>}
+                          {pos && pos <= 3 && <p>• Excellent! You're in the top 3. Protect your ranking by keeping content fresh and monitoring competitors.</p>}
+                          <p>• Check your ranking daily or weekly — each check is saved so you can see trends over time.</p>
+                          <p>• Note: Results are from Bing search. Actual Google rankings may vary slightly.</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })()}
+            </div>
+          </TabsContent>
+
           {/* ─── Page Speed Analyzer ─── */}
           <TabsContent value="page-speed">
             <div className="space-y-6">
