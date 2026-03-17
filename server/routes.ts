@@ -86,6 +86,66 @@ export async function registerRoutes(
     }
   });
 
+  // HTTP Header Checker
+  app.post("/api/seo/http-headers", async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) return res.status(400).json({ error: "URL is required" });
+      let fullUrl = url;
+      if (!fullUrl.startsWith("http")) fullUrl = "https://" + fullUrl;
+      const r = await axios.head(fullUrl, {
+        timeout: 10000,
+        maxRedirects: 0,
+        validateStatus: () => true,
+        headers: { "User-Agent": "Mozilla/5.0" },
+      });
+      const importantHeaders = [
+        "content-type", "x-robots-tag", "cache-control", "content-encoding",
+        "strict-transport-security", "x-frame-options", "x-content-type-options",
+        "content-security-policy", "server", "last-modified", "etag",
+        "access-control-allow-origin", "link", "vary",
+      ];
+      const allHeaders = Object.entries(r.headers).map(([key, value]) => ({
+        key,
+        value: Array.isArray(value) ? value.join(", ") : String(value),
+        important: importantHeaders.includes(key.toLowerCase()),
+      }));
+      res.json({ status: r.status, statusText: r.statusText, headers: allHeaders });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch headers: " + err.message });
+    }
+  });
+
+  // Redirect Chain Checker
+  app.post("/api/seo/redirect-chain", async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) return res.status(400).json({ error: "URL is required" });
+      let currentUrl = url;
+      if (!currentUrl.startsWith("http")) currentUrl = "https://" + currentUrl;
+      const chain: { url: string; status: number; statusText: string }[] = [];
+      let hops = 0;
+      while (hops < 10) {
+        const r = await axios.head(currentUrl, {
+          timeout: 8000,
+          maxRedirects: 0,
+          validateStatus: () => true,
+          headers: { "User-Agent": "Mozilla/5.0" },
+        });
+        chain.push({ url: currentUrl, status: r.status, statusText: r.statusText });
+        if (r.status >= 300 && r.status < 400 && r.headers.location) {
+          currentUrl = new URL(r.headers.location, currentUrl).href;
+          hops++;
+        } else {
+          break;
+        }
+      }
+      res.json({ chain, redirectCount: chain.length - 1 });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to check redirects: " + err.message });
+    }
+  });
+
   // Broken Link Checker
   app.post("/api/seo/broken-links", async (req, res) => {
     try {
