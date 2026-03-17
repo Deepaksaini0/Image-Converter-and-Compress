@@ -86,6 +86,102 @@ export async function registerRoutes(
     }
   });
 
+  // Broken Link Checker
+  app.post("/api/seo/broken-links", async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) return res.status(400).json({ error: "URL is required" });
+
+      let baseUrl = url;
+      if (!baseUrl.startsWith("http")) baseUrl = "https://" + baseUrl;
+
+      const origin = new URL(baseUrl).origin;
+
+      const pageRes = await axios.get(baseUrl, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+      const $ = cheerio.load(pageRes.data);
+      const links: string[] = [];
+
+      $("a[href]").each((_, el) => {
+        const href = $(el).attr("href");
+        if (!href) return;
+        try {
+          const abs = new URL(href, baseUrl).href;
+          if (!links.includes(abs) && links.length < 80) links.push(abs);
+        } catch {}
+      });
+
+      const results = await Promise.all(links.map(async (link) => {
+        try {
+          const r = await axios.head(link, { timeout: 8000, maxRedirects: 5, validateStatus: () => true, headers: { 'User-Agent': 'Mozilla/5.0' } });
+          return { url: link, status: r.status, broken: r.status >= 400, type: link.startsWith(origin) ? "internal" : "external" };
+        } catch (e: any) {
+          return { url: link, status: 0, broken: true, error: e.message, type: link.startsWith(origin) ? "internal" : "external" };
+        }
+      }));
+
+      const broken = results.filter(r => r.broken);
+      res.json({ total: results.length, brokenCount: broken.length, results });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to check links: " + err.message });
+    }
+  });
+
+  // Content Readability Analyzer
+  app.post("/api/seo/readability", async (req, res) => {
+    try {
+      const { text } = req.body;
+      if (!text) return res.status(400).json({ error: "Text is required" });
+
+      const sentences = text.split(/[.!?]+/).filter((s: string) => s.trim().length > 0);
+      const words = text.split(/\s+/).filter((w: string) => w.trim().length > 0);
+      const syllableCount = (word: string) => {
+        word = word.toLowerCase().replace(/[^a-z]/g, "");
+        if (word.length <= 3) return 1;
+        word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, "");
+        word = word.replace(/^y/, "");
+        const m = word.match(/[aeiouy]{1,2}/g);
+        return m ? m.length : 1;
+      };
+      const totalSyllables = words.reduce((sum: number, w: string) => sum + syllableCount(w), 0);
+      const avgWordsPerSentence = words.length / Math.max(sentences.length, 1);
+      const avgSyllablesPerWord = totalSyllables / Math.max(words.length, 1);
+
+      const fleschEase = 206.835 - (1.015 * avgWordsPerSentence) - (84.6 * avgSyllablesPerWord);
+      const fleschKincaidGrade = (0.39 * avgWordsPerSentence) + (11.8 * avgSyllablesPerWord) - 15.59;
+
+      let level = "Very Difficult";
+      let levelColor = "red";
+      if (fleschEase >= 90) { level = "Very Easy"; levelColor = "green"; }
+      else if (fleschEase >= 80) { level = "Easy"; levelColor = "green"; }
+      else if (fleschEase >= 70) { level = "Fairly Easy"; levelColor = "lime"; }
+      else if (fleschEase >= 60) { level = "Standard"; levelColor = "yellow"; }
+      else if (fleschEase >= 50) { level = "Fairly Difficult"; levelColor = "orange"; }
+      else if (fleschEase >= 30) { level = "Difficult"; levelColor = "red"; }
+
+      const suggestions: string[] = [];
+      if (avgWordsPerSentence > 20) suggestions.push("Try to shorten your sentences. Aim for under 20 words per sentence.");
+      if (avgSyllablesPerWord > 1.5) suggestions.push("Use simpler, shorter words to improve readability.");
+      if (fleschKincaidGrade > 12) suggestions.push("Content reads at a college level. Consider simplifying for a wider audience.");
+      if (words.length < 300) suggestions.push("Add more content — pages with 300+ words tend to rank better.");
+      if (sentences.length < 5) suggestions.push("Break your text into more sentences for better readability.");
+
+      res.json({
+        wordCount: words.length,
+        sentenceCount: sentences.length,
+        syllableCount: totalSyllables,
+        avgWordsPerSentence: Math.round(avgWordsPerSentence * 10) / 10,
+        avgSyllablesPerWord: Math.round(avgSyllablesPerWord * 10) / 10,
+        fleschEase: Math.round(fleschEase * 10) / 10,
+        fleschKincaidGrade: Math.round(fleschKincaidGrade * 10) / 10,
+        level,
+        levelColor,
+        suggestions,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/seo/suggest-keywords", async (req, res) => {
     try {
       const { title } = req.body;
