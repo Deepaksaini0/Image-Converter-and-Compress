@@ -10,8 +10,9 @@ import {
   ArrowLeft, Search, FileCode, BarChart3, Loader2, Globe, Share2,
   Link2, Star, BookOpen, CheckCircle, XCircle, AlertTriangle, TrendingUp,
   Code2, Tag, ArrowRight, Server, Zap, Image, FileText, MonitorSmartphone,
-  TrendingDown, Trophy, RefreshCw
+  TrendingDown, Trophy, RefreshCw, Loader, AlertCircle
 } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,9 +21,26 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 
+interface PageAuditItem {
+  name: string; status: "pass" | "warning" | "fail"; message: string; severity: "critical" | "warning" | "info";
+}
+interface PageAudit {
+  url: string; score: number;
+  checks: { category: string; items: PageAuditItem[] }[];
+  recommendations: string[];
+}
+interface AuditResult {
+  url: string; score: number; timestamp: string; pages: PageAudit[]; recommendations: string[];
+}
+
 export default function SEOAuditTools() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Site Audit State
+  const [auditUrl, setAuditUrl] = useState("");
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
 
   // Sitemap State
   const [sitemapXml, setSitemapXml] = useState("");
@@ -210,6 +228,23 @@ export default function SEOAuditTools() {
     setGeneratedSchema(JSON.stringify(schema, null, 2));
     toast({ title: "Schema Generated!" });
   };
+
+  const handleAudit = async () => {
+    if (!auditUrl.trim()) return;
+    setAuditLoading(true);
+    setAuditResult(null);
+    try {
+      const res = await fetch("/api/seo-audit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: auditUrl.trim() }) });
+      if (!res.ok) throw new Error("Audit failed");
+      const data = await res.json();
+      setAuditResult(data);
+      toast({ title: "Audit Complete", description: `SEO Score: ${data.score}/100` });
+    } catch {
+      toast({ title: "Error", description: "Failed to audit. Please try again.", variant: "destructive" });
+    } finally { setAuditLoading(false); }
+  };
+
+  const getScoreColor = (s: number) => s >= 80 ? "text-green-600" : s >= 60 ? "text-yellow-600" : "text-red-600";
 
   const checkHeaders = async () => {
     if (!headerUrl) return;
@@ -410,8 +445,9 @@ export default function SEOAuditTools() {
           </div>
         </div>
 
-        <Tabs defaultValue="sitemap" className="w-full">
+        <Tabs defaultValue="site-audit" className="w-full">
           <TabsList className="flex flex-wrap h-auto gap-1 mb-8 bg-muted p-1 rounded-xl">
+            <TabsTrigger value="site-audit" className="flex items-center gap-1.5 text-xs font-medium"><Globe className="h-3 w-3" />Site Audit</TabsTrigger>
             <TabsTrigger value="sitemap" className="flex items-center gap-1.5 text-xs"><FileCode className="h-3 w-3" />Sitemap</TabsTrigger>
             <TabsTrigger value="keyword" className="flex items-center gap-1.5 text-xs"><BarChart3 className="h-3 w-3" />Keywords</TabsTrigger>
             <TabsTrigger value="robots" className="flex items-center gap-1.5 text-xs"><Globe className="h-3 w-3" />Robots.txt</TabsTrigger>
@@ -427,6 +463,120 @@ export default function SEOAuditTools() {
             <TabsTrigger value="page-speed" className="flex items-center gap-1.5 text-xs"><Zap className="h-3 w-3" />Page Speed</TabsTrigger>
             <TabsTrigger value="rank-tracker" className="flex items-center gap-1.5 text-xs"><Trophy className="h-3 w-3" />Rank Tracker</TabsTrigger>
           </TabsList>
+
+          {/* ─── Site Audit ─── */}
+          <TabsContent value="site-audit">
+            <div className="space-y-6">
+              {!auditResult ? (
+                <div className="space-y-4">
+                  <Card className="p-8 max-w-2xl space-y-6">
+                    <div>
+                      <h2 className="text-2xl font-bold mb-1">Full Website SEO Audit</h2>
+                      <p className="text-muted-foreground text-sm">We crawl up to 5 internal pages and generate a detailed SEO report for each.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-semibold">Website URL</Label>
+                      <div className="flex gap-3">
+                        <Input
+                          placeholder="https://example.com"
+                          value={auditUrl}
+                          onChange={(e) => setAuditUrl(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleAudit()}
+                          className="flex-1"
+                          data-testid="input-audit-url"
+                        />
+                        <Button onClick={handleAudit} disabled={auditLoading || !auditUrl.trim()} className="px-8" data-testid="button-start-audit">
+                          {auditLoading ? <><Loader className="h-4 w-4 mr-2 animate-spin" />Auditing...</> : "Audit Website"}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <h3 className="font-semibold text-blue-900 mb-2">What we check</h3>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
+                        <div className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5" />Title Tag &amp; Meta Data</div>
+                        <div className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5" />H1 Tag Verification</div>
+                        <div className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5" />Image ALT Text</div>
+                        <div className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5" />Multi-page Crawling</div>
+                        <div className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5" />Link Analysis</div>
+                        <div className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5" />Performance Hints</div>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <Card className={`p-6 ${auditResult.score >= 80 ? "bg-green-50 border-green-200" : auditResult.score >= 60 ? "bg-yellow-50 border-yellow-200" : "bg-red-50 border-red-200"}`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1 uppercase tracking-wide">Overall SEO Score</p>
+                        <p className={`text-6xl font-black ${getScoreColor(auditResult.score)}`}>{auditResult.score}<span className="text-2xl font-normal">/100</span></p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground mb-1">Audited</p>
+                        <p className="font-bold break-all max-w-xs">{auditResult.url}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{new Date(auditResult.timestamp).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </Card>
+                  <h2 className="text-xl font-bold">Page-by-Page Results</h2>
+                  <Accordion type="single" collapsible className="space-y-3">
+                    {auditResult.pages.map((page, idx) => (
+                      <AccordionItem key={idx} value={`page-${idx}`} className="border-none">
+                        <Card className="overflow-hidden">
+                          <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                            <div className="flex items-center justify-between w-full pr-4">
+                              <div className="text-left">
+                                <p className="text-sm font-medium text-primary truncate max-w-md">{page.url}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Page {idx + 1}</p>
+                              </div>
+                              <span className={`text-xl font-bold ${getScoreColor(page.score)}`}>{page.score}%</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-6 pb-6 pt-2">
+                            <div className="space-y-6">
+                              {page.checks.map((cat, ci) => (
+                                <div key={ci} className="space-y-3">
+                                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{cat.category}</h4>
+                                  <div className="grid gap-2">
+                                    {cat.items.map((item, ii) => (
+                                      <div key={ii} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                                        {item.status === "pass"
+                                          ? <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                          : <AlertCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${item.severity === "critical" ? "text-red-600" : "text-yellow-600"}`} />}
+                                        <div>
+                                          <p className="text-sm font-semibold">{item.name}</p>
+                                          <p className="text-xs text-muted-foreground">{item.message}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                        </Card>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                  <div className="flex gap-3">
+                    <Button variant="outline" onClick={() => setAuditResult(null)} className="flex-1">New Audit</Button>
+                    <Button className="flex-1" onClick={() => {
+                      let csv = `SEO Audit: ${auditResult.url}\nScore: ${auditResult.score}/100\n\n`;
+                      auditResult.pages.forEach((p, i) => {
+                        csv += `PAGE ${i + 1}: ${p.url}\nScore: ${p.score}/100\n`;
+                        p.checks.forEach(c => c.items.forEach(it => { csv += `"${c.category}","${it.name}","${it.status.toUpperCase()}","${it.message}"\n`; }));
+                        csv += "\n";
+                      });
+                      const a = document.createElement("a");
+                      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+                      a.download = `seo-audit-${Date.now()}.csv`;
+                      a.click();
+                    }}>Download CSV Report</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </TabsContent>
 
           {/* ─── Sitemap ─── */}
           <TabsContent value="sitemap">
