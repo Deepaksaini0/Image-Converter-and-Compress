@@ -1235,7 +1235,7 @@ async function performSEOAudit(baseUrl: string) {
   const visited = new Set<string>();
   const toVisit = [baseUrl];
   const results: any[] = [];
-  const maxPages = 5;
+  const maxPages = 1000;
 
   const domain = new URL(baseUrl).hostname;
 
@@ -1245,7 +1245,7 @@ async function performSEOAudit(baseUrl: string) {
     visited.add(url);
 
     try {
-      const response = await axios.get(url, { timeout: 5000 });
+      const response = await axios.get(url, { timeout: 8000 });
       const $ = cheerio.load(response.data);
 
       const pageResults = auditPage(url, $);

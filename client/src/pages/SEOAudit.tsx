@@ -279,7 +279,7 @@ export default function SEOAuditDashboard() {
                   <Card className="p-8 max-w-2xl space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold mb-1">Full Website Audit</h2>
-                      <p className="text-muted-foreground text-sm">We crawl up to 5 internal pages and generate a detailed SEO report for each.</p>
+                      <p className="text-muted-foreground text-sm">We crawl up to 1,000 internal pages and generate a detailed SEO report for each.</p>
                     </div>
                     <div className="space-y-2">
                       <Label className="font-semibold">Website URL</Label>
