@@ -613,6 +613,84 @@ ${Array.from(visited).map(page => {
     }
   });
 
+  // Crawl a website and return categorized URLs for sitemap generation
+  app.post("/api/sitemap/discover", async (req, res) => {
+    try {
+      let { url } = req.body;
+      if (!url) return res.status(400).json({ error: "URL is required" });
+      if (!url.startsWith("http")) url = "https://" + url;
+
+      const urlObj = new URL(url);
+      const domain = urlObj.origin;
+      const visited = new Set<string>();
+      const toVisit: string[] = [domain];
+      const today = new Date().toISOString().split("T")[0];
+
+      while (toVisit.length > 0 && visited.size < 5000) {
+        const current = toVisit.shift()!;
+        if (visited.has(current)) continue;
+        visited.add(current);
+        try {
+          const resp = await axios.get(current, {
+            timeout: 8000,
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; SitemapBot/1.0)" },
+            maxRedirects: 3,
+          });
+          const $ = cheerio.load(resp.data);
+          $("a[href]").each((_, el) => {
+            const href = $(el).attr("href");
+            if (!href) return;
+            try {
+              const linkObj = new URL(href, current);
+              const clean = linkObj.origin + linkObj.pathname.replace(/\/$/, "");
+              if (
+                linkObj.origin === domain &&
+                !visited.has(clean) &&
+                !toVisit.includes(clean) &&
+                !clean.match(/\.(jpg|jpeg|png|gif|webp|svg|pdf|zip|gz|exe|css|js|ico|woff|ttf)$/i) &&
+                !clean.includes("#") &&
+                !clean.includes("?")
+              ) {
+                toVisit.push(clean);
+              }
+            } catch {}
+          });
+        } catch {}
+      }
+
+      // Categorise discovered URLs
+      const pages: string[] = [];
+      const blogs: string[] = [];
+      const categories: string[] = [];
+
+      for (const u of visited) {
+        const path = u.replace(domain, "") || "/";
+        if (/^\/(blog|post|posts|article|articles|news|story|stories)(\/|$)/i.test(path)) {
+          blogs.push(u);
+        } else if (/^\/(category|categories|cat|tag|tags|topic|topics)(\/|$)/i.test(path)) {
+          categories.push(u);
+        } else {
+          pages.push(u);
+        }
+      }
+
+      pages.sort();
+      blogs.sort();
+      categories.sort();
+
+      res.json({
+        domain,
+        today,
+        total: visited.size,
+        pages,
+        blogs,
+        categories,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/web-tools/process", async (req, res) => {
     const { input, tool } = req.body;
     if (!input) return res.status(400).json({ error: "Input is required" });
