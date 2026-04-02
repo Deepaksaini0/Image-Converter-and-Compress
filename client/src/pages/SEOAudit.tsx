@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { AuditHistoryCompare } from "@/components/AuditHistoryCompare";
+import { SitemapGenerator } from "@/components/SitemapGenerator";
 
 interface PageAudit {
   url: string; score: number;
@@ -271,6 +272,7 @@ export default function SEOAuditDashboard() {
             <TabsTrigger value="page-speed" className="flex items-center gap-1.5 text-xs"><Zap className="h-3 w-3" />Page Speed</TabsTrigger>
             <TabsTrigger value="rank-tracker" className="flex items-center gap-1.5 text-xs"><Trophy className="h-3 w-3" />Rank Tracker</TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-1.5 text-xs font-medium text-primary"><TrendingUp className="h-3 w-3" />History &amp; Compare</TabsTrigger>
+            <TabsTrigger value="sitemap-gen" className="flex items-center gap-1.5 text-xs"><FileCode className="h-3 w-3" />Sitemap Gen</TabsTrigger>
           </TabsList>
 
           {/* ── Site Audit ── */}
@@ -726,6 +728,11 @@ export default function SEOAuditDashboard() {
           {/* ── History & Compare ── */}
           <TabsContent value="history">
             <AuditHistoryCompare />
+          </TabsContent>
+
+          {/* ── Sitemap Generator ── */}
+          <TabsContent value="sitemap-gen">
+            <SitemapGenerator />
           </TabsContent>
         </Tabs>
       </div>
