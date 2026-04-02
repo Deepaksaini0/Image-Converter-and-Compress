@@ -74,30 +74,25 @@ function today() {
 function buildXml(baseUrl: string, entries: Record<string, UrlEntry[]>): string {
   const clean = baseUrl.replace(/\/$/, "");
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  xml += `<urlset\n`;
-  xml += `  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
-  xml += `  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n`;
-  xml += `  xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9\n`;
-  xml += `                      http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">\n\n`;
+  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
 
   for (const section of SECTIONS) {
     const list = entries[section.key] ?? [];
     if (!list.length) continue;
-    xml += `${section.comment}\n`;
+    xml += `\n${section.comment}\n`;
     for (const entry of list) {
       const path = entry.path.startsWith("/") ? entry.path : "/" + entry.path;
       const loc = clean + path;
-      xml += `  <url>\n`;
-      xml += `    <loc>${loc}</loc>\n`;
-      xml += `    <lastmod>${entry.lastmod}</lastmod>\n`;
-      xml += `    <changefreq>${entry.changefreq}</changefreq>\n`;
-      xml += `    <priority>${entry.priority}</priority>\n`;
-      xml += `  </url>\n`;
+      xml += `<url>\n`;
+      xml += `<loc>${loc}</loc>\n`;
+      xml += `<lastmod>${entry.lastmod}</lastmod>\n`;
+      xml += `<changefreq>${entry.changefreq}</changefreq>\n`;
+      xml += `<priority>${entry.priority}</priority>\n`;
+      xml += `</url>\n`;
     }
-    xml += `\n`;
   }
 
-  xml += `</urlset>`;
+  xml += `\n</urlset>`;
   return xml;
 }
 

@@ -109,7 +109,7 @@ function scan_directory(string $dir, string $url_prefix, array $extensions, arra
 // ── Helper: Build a <url> entry ───────────────────────────────────────────────
 function url_entry(string $loc, string $lastmod, string $changefreq, string $priority): string {
     return sprintf(
-        "  <url>\n    <loc>%s</loc>\n    <lastmod>%s</lastmod>\n    <changefreq>%s</changefreq>\n    <priority>%s</priority>\n  </url>\n",
+        "<url>\n<loc>%s</loc>\n<lastmod>%s</lastmod>\n<changefreq>%s</changefreq>\n<priority>%s</priority>\n</url>\n",
         htmlspecialchars($loc, ENT_XML1 | ENT_COMPAT, 'UTF-8'),
         htmlspecialchars($lastmod, ENT_XML1, 'UTF-8'),
         htmlspecialchars($changefreq, ENT_XML1, 'UTF-8'),
@@ -234,32 +234,24 @@ foreach ($scanned_cats as $item) {
 // without hitting PHP memory limits.
 
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-echo '<urlset' . "\n";
-echo '  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"' . "\n";
-echo '  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' . "\n";
-echo '  xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9' . "\n";
-echo '                      http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">' . "\n\n";
+echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 
 // ── Pages ──────────────────────────────────────────────────────────────────────
-echo "<!-- Here are pages -->\n";
+echo "\n<!-- Here are pages -->\n";
 foreach ($pages as $entry) {
     echo url_entry($entry['url'], $entry['lastmod'], $entry['changefreq'], $entry['priority']);
     flush();
 }
 
-echo "\n";
-
 // ── Blog Posts ────────────────────────────────────────────────────────────────
-echo "<!-- Here are blog posts -->\n";
+echo "\n<!-- Here are blog posts -->\n";
 foreach ($blogs as $entry) {
     echo url_entry($entry['url'], $entry['lastmod'], $entry['changefreq'], $entry['priority']);
     flush();
 }
 
-echo "\n";
-
 // ── Category Pages ────────────────────────────────────────────────────────────
-echo "<!-- Here are category pages -->\n";
+echo "\n<!-- Here are category pages -->\n";
 foreach ($categories as $entry) {
     echo url_entry($entry['url'], $entry['lastmod'], $entry['changefreq'], $entry['priority']);
     flush();
