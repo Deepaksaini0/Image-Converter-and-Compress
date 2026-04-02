@@ -110,6 +110,21 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 
+// Audit Snapshots table — stores full SEO audit results for comparison over time
+export const auditSnapshots = pgTable("audit_snapshots", {
+  id: serial("id").primaryKey(),
+  url: text("url").notNull(),
+  domain: text("domain").notNull(),
+  score: integer("score").notNull(),
+  pageCount: integer("page_count").notNull(),
+  pagesJson: text("pages_json").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAuditSnapshotSchema = createInsertSchema(auditSnapshots).omit({ id: true, createdAt: true });
+export type AuditSnapshot = typeof auditSnapshots.$inferSelect;
+export type InsertAuditSnapshot = z.infer<typeof insertAuditSnapshotSchema>;
+
 // Rank Checks table
 export const rankChecks = pgTable("rank_checks", {
   id: serial("id").primaryKey(),

@@ -24,7 +24,7 @@ import {
 } from "@shared/schema";
 import { storage as dbStorage } from "./storage";
 import { db } from "./db";
-import { rankChecks } from "../shared/schema";
+import { rankChecks, auditSnapshots } from "../shared/schema";
 import { eq, and, gte, desc } from "drizzle-orm";
 import { z } from "zod";
 import CleanCSS from "clean-css";
@@ -1180,20 +1180,74 @@ ${Array.from(visited).map(page => {
       if (!url || typeof url !== "string") {
         return res.status(400).json({ message: "Invalid URL" });
       }
-
-      // Validate URL format
-      try {
-        new URL(url);
-      } catch {
+      try { new URL(url); } catch {
         return res.status(400).json({ message: "Invalid URL format" });
       }
 
-      // Perform full website SEO audit
       const auditResult = await performSEOAudit(url);
+
+      // Save snapshot to DB for historical comparison
+      try {
+        const domain = new URL(url).hostname;
+        await db.insert(auditSnapshots).values({
+          url,
+          domain,
+          score: auditResult.score,
+          pageCount: auditResult.pages.length,
+          pagesJson: JSON.stringify(auditResult.pages),
+        });
+      } catch (dbErr) {
+        console.error("Failed to save audit snapshot:", dbErr);
+      }
+
       res.json(auditResult);
     } catch (error) {
       console.error("SEO audit error:", error);
       res.status(500).json({ message: "Error performing SEO audit" });
+    }
+  });
+
+  // Audit history — list all snapshots for a domain
+  app.get("/api/seo/audit-history", async (req, res) => {
+    try {
+      const { domain } = req.query;
+      if (!domain || typeof domain !== "string") {
+        return res.status(400).json({ error: "domain query param required" });
+      }
+      const rows = await db
+        .select({
+          id: auditSnapshots.id,
+          url: auditSnapshots.url,
+          domain: auditSnapshots.domain,
+          score: auditSnapshots.score,
+          pageCount: auditSnapshots.pageCount,
+          createdAt: auditSnapshots.createdAt,
+        })
+        .from(auditSnapshots)
+        .where(eq(auditSnapshots.domain, domain))
+        .orderBy(desc(auditSnapshots.createdAt))
+        .limit(50);
+      res.json({ history: rows });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Audit snapshot detail — returns full pages JSON for a specific snapshot
+  app.get("/api/seo/audit-snapshot/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+      const rows = await db
+        .select()
+        .from(auditSnapshots)
+        .where(eq(auditSnapshots.id, id))
+        .limit(1);
+      if (!rows.length) return res.status(404).json({ error: "Not found" });
+      const row = rows[0];
+      res.json({ ...row, pages: JSON.parse(row.pagesJson) });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 
