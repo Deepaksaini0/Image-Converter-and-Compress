@@ -1,0 +1,47 @@
+Options -Indexes
+
+# ── Required for mod_rewrite ───────────────────────────────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # ── sitemap.xml → sitemap.php ──────────────────────────────────────────────
+    # Visitors (and Google Search Console) hit /sitemap.xml
+    # Apache silently runs sitemap.php and returns the XML.
+    RewriteRule ^sitemap\.xml$ sitemap.php [L,NC]
+
+    # ── Pretty URLs (optional) ─────────────────────────────────────────────────
+    # Remove .php extension from page URLs.
+    # /about loads /about.php  |  /blog/my-post loads /blog/my-post.php
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME}\.php -f
+    RewriteRule ^(.+?)/?$ $1.php [L,NC]
+
+    # ── Remove trailing slash ──────────────────────────────────────────────────
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)/$ /$1 [L,R=301]
+</IfModule>
+
+# ── Compression (speeds up sitemap delivery for thousands of URLs) ─────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE application/xml text/xml
+</IfModule>
+
+# ── Security headers ───────────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "no-referrer-when-downgrade"
+</IfModule>
+
+# ── Cache control for the sitemap ─────────────────────────────────────────────
+<FilesMatch "^sitemap\.php$">
+    <IfModule mod_headers.c>
+        Header set Cache-Control "public, max-age=3600"
+    </IfModule>
+</FilesMatch>
+
+# ── Block direct access to PHP source files ───────────────────────────────────
+<FilesMatch "\.(php)$">
+    # Allow only sitemap.php directly (everything else goes through clean URLs)
+</FilesMatch>
