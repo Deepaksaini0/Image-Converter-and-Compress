@@ -598,6 +598,188 @@ Respond ONLY with valid JSON in this exact format:
     }
   });
 
+  // ── Competitor Keyword Gap ─────────────────────────────────────────────────
+  app.post("/api/seo/keyword-gap", async (req, res) => {
+    try {
+      const { domain1, domain2 } = req.body;
+      if (!domain1 || !domain2) return res.status(400).json({ error: "Both domains are required" });
+
+      const normalise = (d: string) => d.startsWith("http") ? d.trim() : `https://${d.trim()}`;
+      const url1 = normalise(domain1);
+      const url2 = normalise(domain2);
+
+      // Crawl a site: homepage + up to 12 internal links
+      const crawlSite = async (baseUrl: string) => {
+        const visited = new Set<string>();
+        const pages: string[] = [baseUrl];
+        const extracted: string[] = [];
+
+        const host = new URL(baseUrl).hostname;
+        const fetchPage = async (u: string) => {
+          if (visited.has(u) || visited.size >= 13) return;
+          visited.add(u);
+          try {
+            const r = await axios.get(u, { timeout: 8000, headers: { "User-Agent": "Mozilla/5.0" } });
+            const $ = cheerio.load(r.data);
+            const title = $("title").text().trim();
+            const desc  = $('meta[name="description"]').attr("content") || "";
+            const h1    = $("h1").map((_, el) => $(el).text().trim()).get().join(" | ");
+            const h2    = $("h2").map((_, el) => $(el).text().trim()).get().slice(0, 6).join(" | ");
+            const h3    = $("h3").map((_, el) => $(el).text().trim()).get().slice(0, 6).join(" | ");
+            if (title || h1) extracted.push(`PAGE: ${u}\nTitle: ${title}\nDesc: ${desc}\nH1: ${h1}\nH2: ${h2}\nH3: ${h3}`);
+
+            // collect internal links
+            $("a[href]").each((_, el) => {
+              const href = $(el).attr("href") || "";
+              if (!href || href.startsWith("#") || href.startsWith("mailto:")) return;
+              try {
+                const full = href.startsWith("http") ? href : new URL(href, baseUrl).href;
+                if (new URL(full).hostname === host && !visited.has(full) && pages.length < 13) {
+                  pages.push(full);
+                }
+              } catch {}
+            });
+          } catch {}
+        };
+
+        // Also try sitemap
+        try {
+          const sm = await axios.get(`${baseUrl}/sitemap.xml`, { timeout: 5000 });
+          const $s = cheerio.load(sm.data, { xmlMode: true });
+          $s("loc").each((_, el) => {
+            const loc = $s(el).text().trim();
+            try {
+              if (new URL(loc).hostname === host && !pages.includes(loc) && pages.length < 13) pages.push(loc);
+            } catch {}
+          });
+        } catch {}
+
+        for (const p of pages) { await fetchPage(p); }
+        return extracted.join("\n\n");
+      };
+
+      const [content1, content2] = await Promise.all([crawlSite(url1), crawlSite(url2)]);
+
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const prompt = `You are an expert SEO analyst. You have crawled two websites and extracted their page titles, headings, and meta descriptions.
+
+SITE A (${domain1}):
+${content1.slice(0, 6000)}
+
+SITE B (${domain2}):
+${content2.slice(0, 6000)}
+
+Analyse the content and return a JSON object with this exact structure:
+{
+  "siteA": { "domain": "${domain1}", "topTopics": ["topic1","topic2",...up to 10] },
+  "siteB": { "domain": "${domain2}", "topTopics": ["topic1","topic2",...up to 10] },
+  "gaps": [
+    { "keyword": "keyword or topic phrase", "competitorPages": 2, "opportunity": "Why Site A should target this", "difficulty": "Low|Medium|High", "intent": "Informational|Commercial|Transactional" }
+  ],
+  "sharedTopics": ["topic1","topic2",...up to 8],
+  "quickWins": ["Specific actionable recommendation 1","Recommendation 2",...up to 5],
+  "summary": "2-3 sentence overall analysis"
+}
+gaps should list 8-12 keywords/topics that Site B covers but Site A does NOT cover, sorted by opportunity.
+Respond with ONLY the JSON object, no markdown or extra text.`;
+
+      const resp = await openai.chat.completions.create({
+        model: "gpt-5.1",
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const raw = (resp.choices[0].message.content || "{}").replace(/```json|```/g, "").trim();
+      const data = JSON.parse(raw);
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: "Analysis failed: " + (err.message || "Unknown error") });
+    }
+  });
+
+  // ── GSC CSV Import ─────────────────────────────────────────────────────────
+  const csvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+  app.post("/api/seo/gsc-import", csvUpload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: "CSV file required" });
+
+      const text = req.file.buffer.toString("utf-8");
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) return res.status(400).json({ error: "CSV appears empty" });
+
+      const rawHeader = lines[0];
+      const headers = rawHeader.split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase());
+
+      const col = (name: string) => headers.findIndex(h => h.includes(name));
+      const qIdx  = col("query");
+      const pIdx  = col("page") !== -1 && qIdx === -1 ? col("page") : -1;
+      const clIdx = col("click");
+      const imIdx = col("impression");
+      const ctIdx = col("ctr");
+      const poIdx = col("position");
+
+      const rows = lines.slice(1).map(line => {
+        // handle quoted CSV fields
+        const cells: string[] = [];
+        let cur = "", inQ = false;
+        for (const ch of line) {
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === "," && !inQ) { cells.push(cur); cur = ""; }
+          else { cur += ch; }
+        }
+        cells.push(cur);
+        const get = (i: number) => (cells[i] || "").trim().replace(/^"|"$/g, "");
+        const parseCtr = (v: string) => parseFloat(v.replace("%", "")) || 0;
+        return {
+          keyword:     qIdx  !== -1 ? get(qIdx)  : (pIdx !== -1 ? get(pIdx) : get(0)),
+          page:        pIdx  !== -1 ? get(pIdx)  : "",
+          clicks:      parseInt(get(clIdx)) || 0,
+          impressions: parseInt(get(imIdx)) || 0,
+          ctr:         parseCtr(get(ctIdx)),
+          position:    parseFloat(get(poIdx))  || 0,
+        };
+      }).filter(r => r.keyword && r.impressions > 0);
+
+      // Analysis
+      const total = rows.length;
+      const totalClicks      = rows.reduce((s, r) => s + r.clicks, 0);
+      const totalImpressions = rows.reduce((s, r) => s + r.impressions, 0);
+
+      const sorted = [...rows].sort((a, b) => b.impressions - a.impressions);
+      const top20  = sorted.slice(0, 20);
+
+      // Quick wins: position 4-20, decent impressions
+      const quickWins = rows
+        .filter(r => r.position >= 4 && r.position <= 20 && r.impressions >= 100)
+        .sort((a, b) => a.position - b.position)
+        .slice(0, 15);
+
+      // Position bands
+      const bands = { top3: 0, p4to10: 0, p11to20: 0, p21plus: 0 };
+      rows.forEach(r => {
+        if (r.position <= 3)       bands.top3++;
+        else if (r.position <= 10) bands.p4to10++;
+        else if (r.position <= 20) bands.p11to20++;
+        else                       bands.p21plus++;
+      });
+
+      // Low CTR (high impressions, below-average CTR for their position)
+      const lowCtr = rows
+        .filter(r => r.impressions >= 200 && r.position <= 10 && r.ctr < 2)
+        .sort((a, b) => b.impressions - a.impressions)
+        .slice(0, 10);
+
+      res.json({ total, totalClicks, totalImpressions, avgPosition: rows.length ? (rows.reduce((s,r) => s+r.position,0)/rows.length).toFixed(1) : "0",
+        top20, quickWins, lowCtr, bands, isPageReport: pIdx !== -1 && qIdx === -1 });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to parse CSV: " + (err.message || "Unknown error") });
+    }
+  });
+
   // ── URL Slug Generator ─────────────────────────────────────────────────────
   app.post("/api/seo/slug-generator", async (req, res) => {
     try {

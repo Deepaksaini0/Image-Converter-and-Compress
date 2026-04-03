@@ -20,6 +20,8 @@ import { AIMetaTagGenerator } from "@/components/AIMetaTagGenerator";
 import { CoreWebVitals } from "@/components/CoreWebVitals";
 import { WordCountChecker } from "@/components/WordCountChecker";
 import { URLSlugGenerator } from "@/components/URLSlugGenerator";
+import { KeywordGapAnalyzer } from "@/components/KeywordGapAnalyzer";
+import { GSCImporter } from "@/components/GSCImporter";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -474,6 +476,8 @@ export default function SEOAuditTools() {
             <TabsTrigger value="web-vitals" className="flex items-center gap-1.5 text-xs"><Zap className="h-3 w-3" />Web Vitals</TabsTrigger>
             <TabsTrigger value="word-count" className="flex items-center gap-1.5 text-xs"><FileText className="h-3 w-3" />Word Count</TabsTrigger>
             <TabsTrigger value="slug-gen" className="flex items-center gap-1.5 text-xs"><ArrowRight className="h-3 w-3" />Slug Generator</TabsTrigger>
+            <TabsTrigger value="keyword-gap" className="flex items-center gap-1.5 text-xs"><BarChart3 className="h-3 w-3" />Keyword Gap</TabsTrigger>
+            <TabsTrigger value="gsc-import" className="flex items-center gap-1.5 text-xs"><TrendingUp className="h-3 w-3" />GSC Import</TabsTrigger>
           </TabsList>
 
           {/* ─── Site Audit ─── */}
@@ -1412,6 +1416,16 @@ export default function SEOAuditTools() {
           {/* ─── URL Slug Generator ─── */}
           <TabsContent value="slug-gen">
             <URLSlugGenerator />
+          </TabsContent>
+
+          {/* ─── Keyword Gap Analyzer ─── */}
+          <TabsContent value="keyword-gap">
+            <KeywordGapAnalyzer />
+          </TabsContent>
+
+          {/* ─── GSC Importer ─── */}
+          <TabsContent value="gsc-import">
+            <GSCImporter />
           </TabsContent>
         </Tabs>
       </div>
