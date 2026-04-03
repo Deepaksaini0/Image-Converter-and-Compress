@@ -16,6 +16,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { AuditHistoryCompare } from "@/components/AuditHistoryCompare";
 import { SitemapGenerator } from "@/components/SitemapGenerator";
+import { AIMetaTagGenerator } from "@/components/AIMetaTagGenerator";
+import { CoreWebVitals } from "@/components/CoreWebVitals";
+import { WordCountChecker } from "@/components/WordCountChecker";
+import { URLSlugGenerator } from "@/components/URLSlugGenerator";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -466,6 +470,10 @@ export default function SEOAuditTools() {
             <TabsTrigger value="rank-tracker" className="flex items-center gap-1.5 text-xs"><Trophy className="h-3 w-3" />Rank Tracker</TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-1.5 text-xs font-medium text-primary"><TrendingUp className="h-3 w-3" />History &amp; Compare</TabsTrigger>
             <TabsTrigger value="sitemap-gen" className="flex items-center gap-1.5 text-xs"><FileCode className="h-3 w-3" />Sitemap Gen</TabsTrigger>
+            <TabsTrigger value="ai-meta" className="flex items-center gap-1.5 text-xs"><Tag className="h-3 w-3" />AI Meta Tags</TabsTrigger>
+            <TabsTrigger value="web-vitals" className="flex items-center gap-1.5 text-xs"><Zap className="h-3 w-3" />Web Vitals</TabsTrigger>
+            <TabsTrigger value="word-count" className="flex items-center gap-1.5 text-xs"><FileText className="h-3 w-3" />Word Count</TabsTrigger>
+            <TabsTrigger value="slug-gen" className="flex items-center gap-1.5 text-xs"><ArrowRight className="h-3 w-3" />Slug Generator</TabsTrigger>
           </TabsList>
 
           {/* ─── Site Audit ─── */}
@@ -1384,6 +1392,26 @@ export default function SEOAuditTools() {
           {/* ─── Sitemap Generator ─── */}
           <TabsContent value="sitemap-gen">
             <SitemapGenerator />
+          </TabsContent>
+
+          {/* ─── AI Meta Tag Generator ─── */}
+          <TabsContent value="ai-meta">
+            <AIMetaTagGenerator />
+          </TabsContent>
+
+          {/* ─── Core Web Vitals ─── */}
+          <TabsContent value="web-vitals">
+            <CoreWebVitals />
+          </TabsContent>
+
+          {/* ─── Word Count Checker ─── */}
+          <TabsContent value="word-count">
+            <WordCountChecker />
+          </TabsContent>
+
+          {/* ─── URL Slug Generator ─── */}
+          <TabsContent value="slug-gen">
+            <URLSlugGenerator />
           </TabsContent>
         </Tabs>
       </div>

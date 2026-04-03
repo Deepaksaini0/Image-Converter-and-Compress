@@ -466,6 +466,146 @@ export async function registerRoutes(
     }
   });
 
+  // ── AI Meta Tag Generator ─────────────────────────────────────────────────
+  app.post("/api/seo/ai-meta-tags", async (req, res) => {
+    try {
+      const { topic } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic or URL is required" });
+
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.1",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert SEO copywriter. Given a topic or URL, generate:
+1. An SEO-optimized title tag (MUST be under 60 characters, include primary keyword near the start)
+2. A compelling meta description (MUST be under 160 characters, include a call to action)
+3. A list of 8 relevant keyword suggestions (comma-separated)
+
+Respond ONLY with valid JSON in this exact format:
+{"title": "...", "description": "...", "keywords": ["kw1","kw2","kw3","kw4","kw5","kw6","kw7","kw8"]}`
+          },
+          { role: "user", content: `Topic/URL: ${topic}` }
+        ]
+      });
+
+      const raw = response.choices[0].message.content || "{}";
+      const clean = raw.replace(/```json|```/g, "").trim();
+      const data = JSON.parse(clean);
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to generate meta tags: " + (err.message || "Unknown error") });
+    }
+  });
+
+  // ── Core Web Vitals ────────────────────────────────────────────────────────
+  app.get("/api/seo/core-web-vitals", async (req, res) => {
+    try {
+      const { url } = req.query;
+      if (!url || typeof url !== "string") return res.status(400).json({ error: "URL required" });
+
+      const fetchVitals = async (strategy: "mobile" | "desktop") => {
+        const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}&category=PERFORMANCE`;
+        const r = await axios.get(apiUrl, { timeout: 30000 });
+        const lr = r.data.lighthouseResult;
+        const audits = lr.audits;
+        return {
+          score: Math.round((lr.categories.performance.score ?? 0) * 100),
+          lcp:   Math.round((audits["largest-contentful-paint"]?.numericValue ?? 0) / 100) / 10,
+          tbt:   Math.round(audits["total-blocking-time"]?.numericValue ?? 0),
+          cls:   Math.round((audits["cumulative-layout-shift"]?.numericValue ?? 0) * 1000) / 1000,
+          fcp:   Math.round((audits["first-contentful-paint"]?.numericValue ?? 0) / 100) / 10,
+          si:    Math.round((audits["speed-index"]?.numericValue ?? 0) / 100) / 10,
+          tti:   Math.round((audits["interactive"]?.numericValue ?? 0) / 100) / 10,
+        };
+      };
+
+      const [mobile, desktop] = await Promise.all([fetchVitals("mobile"), fetchVitals("desktop")]);
+      res.json({ mobile, desktop });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch Core Web Vitals: " + (err.message || "Unknown error") });
+    }
+  });
+
+  // ── Word Count Checker ─────────────────────────────────────────────────────
+  app.post("/api/seo/word-count", async (req, res) => {
+    try {
+      const { url, text } = req.body;
+      let content = text || "";
+
+      if (url && !text) {
+        const r = await axios.get(url, { timeout: 10000, headers: { "User-Agent": "Mozilla/5.0" } });
+        const $ = cheerio.load(r.data);
+        $("script, style, nav, header, footer, aside").remove();
+        content = $("body").text().replace(/\s+/g, " ").trim();
+      }
+
+      if (!content) return res.status(400).json({ error: "Provide a URL or text" });
+
+      const words      = content.match(/\b\w+\b/g) || [];
+      const sentences  = content.split(/[.!?]+/).filter(s => s.trim().length > 5).length;
+      const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim()).length;
+      const chars      = content.replace(/\s/g, "").length;
+      const readingMin = Math.ceil(words.length / 230);
+
+      res.json({
+        wordCount:  words.length,
+        sentences,
+        paragraphs,
+        charCount:  chars,
+        readingTime: readingMin,
+        recommendations: {
+          blog:       { min: 1500, max: 2500, label: "Blog Post" },
+          landing:    { min: 500,  max: 1000, label: "Landing Page" },
+          product:    { min: 300,  max: 600,  label: "Product Page" },
+          homepage:   { min: 300,  max: 500,  label: "Homepage" },
+        }
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to analyse: " + (err.message || "Unknown error") });
+    }
+  });
+
+  // ── URL Slug Generator ─────────────────────────────────────────────────────
+  app.post("/api/seo/slug-generator", async (req, res) => {
+    try {
+      const { title } = req.body;
+      if (!title) return res.status(400).json({ error: "Title is required" });
+
+      const slugify = (s: string) =>
+        s.toLowerCase()
+          .replace(/['']/g, "")
+          .replace(/[^a-z0-9\s-]/g, "")
+          .trim()
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-");
+
+      // Stop words to strip for short/keyword variants
+      const stopWords = new Set(["a","an","the","and","or","but","in","on","at","to","for","of","with","by","from","how","what","why","when","where","is","are","was","were","be","been","being","have","has","had","do","does","did","will","would","can","could","should","may","might","must","shall","your","you","we","our","they","it","its","this","that","these","those","about","into","up","out","as","so","if","then","than","more","most","also","just","get","all","s","vs","vs."]);
+
+      const words = title.toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim().split(/\s+/);
+      const keyWords = words.filter(w => !stopWords.has(w));
+      const year = new Date().getFullYear();
+
+      const slugs = [
+        { label: "Standard",          slug: slugify(title) },
+        { label: "Short & punchy",     slug: keyWords.slice(0, 4).join("-") },
+        { label: "Keyword-first",      slug: [...keyWords.slice(0, 3), ...words.filter(w => stopWords.has(w)).slice(0, 2)].join("-").replace(/-+/g, "-") },
+        { label: `With year (${year})`, slug: `${year}-${keyWords.slice(0, 4).join("-")}` },
+        { label: "Ultra short",        slug: keyWords.slice(0, 3).join("-") },
+      ];
+
+      res.json({ slugs });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/seo/social-preview", async (req, res) => {
     try {
       const { url } = req.body;
