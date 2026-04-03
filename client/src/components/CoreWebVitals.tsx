@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Zap, Loader2, Monitor, Smartphone, CheckCircle, AlertTriangle, XCircle, Info } from "lucide-react";
+import { Zap, Loader2, Monitor, Smartphone, CheckCircle, AlertTriangle, XCircle, Info, Clock, RefreshCw } from "lucide-react";
 
 interface Vitals {
   score: number; lcp: number; tbt: number; cls: number; fcp: number; si: number; tti: number;
@@ -88,16 +88,18 @@ export function CoreWebVitals() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<VitalsResult | null>(null);
   const [view, setView] = useState<"mobile" | "desktop">("mobile");
+  const [rateLimited, setRateLimited] = useState(false);
 
   const check = async () => {
     let u = url.trim();
     if (!u) { toast({ title: "Enter a URL", variant: "destructive" }); return; }
     if (!u.startsWith("http")) u = "https://" + u;
-    setLoading(true); setResult(null);
+    setLoading(true); setResult(null); setRateLimited(false);
     try {
       const r = await fetch(`/api/seo/core-web-vitals?url=${encodeURIComponent(u)}`);
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (r.status === 429 || d.error === "RATE_LIMITED") { setRateLimited(true); return; }
+      if (!r.ok) throw new Error(d.error || d.message);
       setResult(d);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -188,7 +190,29 @@ export function CoreWebVitals() {
         </>
       )}
 
-      {!result && !loading && (
+      {rateLimited && !loading && (
+        <Card className="border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-700">
+          <CardContent className="p-5 flex gap-4 items-start">
+            <Clock className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
+            <div className="space-y-1.5">
+              <p className="font-semibold text-yellow-800 dark:text-yellow-300">Google's rate limit reached — please wait a minute</p>
+              <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                The free anonymous quota for Google PageSpeed Insights is shared across all users on this server.
+                The backend already retried automatically — please wait <strong>60 seconds</strong> and try again.
+              </p>
+              <p className="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
+                For unlimited checks, add a free <strong>Google API key</strong> as the secret <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded font-mono text-xs">GOOGLE_PAGESPEED_API_KEY</code> — Google offers 25,000 free requests/day.
+              </p>
+              <Button size="sm" variant="outline" className="mt-2 border-yellow-400 text-yellow-800 dark:text-yellow-300 hover:bg-yellow-100"
+                onClick={() => { setRateLimited(false); check(); }}>
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry now
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!result && !loading && !rateLimited && (
         <Card className="border-dashed">
           <CardContent className="p-8 text-center space-y-2">
             <Zap className="h-10 w-10 mx-auto text-muted-foreground/30" />

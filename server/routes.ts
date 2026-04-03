@@ -509,25 +509,52 @@ Respond ONLY with valid JSON in this exact format:
       const { url } = req.query;
       if (!url || typeof url !== "string") return res.status(400).json({ error: "URL required" });
 
-      const fetchVitals = async (strategy: "mobile" | "desktop") => {
-        const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}&category=PERFORMANCE`;
-        const r = await axios.get(apiUrl, { timeout: 30000 });
-        const lr = r.data.lighthouseResult;
-        const audits = lr.audits;
-        return {
-          score: Math.round((lr.categories.performance.score ?? 0) * 100),
-          lcp:   Math.round((audits["largest-contentful-paint"]?.numericValue ?? 0) / 100) / 10,
-          tbt:   Math.round(audits["total-blocking-time"]?.numericValue ?? 0),
-          cls:   Math.round((audits["cumulative-layout-shift"]?.numericValue ?? 0) * 1000) / 1000,
-          fcp:   Math.round((audits["first-contentful-paint"]?.numericValue ?? 0) / 100) / 10,
-          si:    Math.round((audits["speed-index"]?.numericValue ?? 0) / 100) / 10,
-          tti:   Math.round((audits["interactive"]?.numericValue ?? 0) / 100) / 10,
-        };
+      const apiKey = process.env.GOOGLE_PAGESPEED_API_KEY || "";
+
+      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+      const fetchVitals = async (strategy: "mobile" | "desktop", attempt = 0): Promise<any> => {
+        const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}&category=PERFORMANCE${apiKey ? `&key=${apiKey}` : ""}`;
+        try {
+          const r = await axios.get(apiUrl, { timeout: 45000 });
+          const lr = r.data.lighthouseResult;
+          const audits = lr.audits;
+          return {
+            score: Math.round((lr.categories.performance.score ?? 0) * 100),
+            lcp:   Math.round((audits["largest-contentful-paint"]?.numericValue ?? 0) / 100) / 10,
+            tbt:   Math.round(audits["total-blocking-time"]?.numericValue ?? 0),
+            cls:   Math.round((audits["cumulative-layout-shift"]?.numericValue ?? 0) * 1000) / 1000,
+            fcp:   Math.round((audits["first-contentful-paint"]?.numericValue ?? 0) / 100) / 10,
+            si:    Math.round((audits["speed-index"]?.numericValue ?? 0) / 100) / 10,
+            tti:   Math.round((audits["interactive"]?.numericValue ?? 0) / 100) / 10,
+          };
+        } catch (e: any) {
+          const status = e.response?.status;
+          if (status === 429 && attempt < 3) {
+            const delay = [4000, 8000, 16000][attempt];
+            await sleep(delay);
+            return fetchVitals(strategy, attempt + 1);
+          }
+          if (status === 429) {
+            throw new Error("RATE_LIMITED");
+          }
+          throw e;
+        }
       };
 
-      const [mobile, desktop] = await Promise.all([fetchVitals("mobile"), fetchVitals("desktop")]);
+      // Run sequentially to halve the rate-limit pressure
+      const mobile = await fetchVitals("mobile");
+      await sleep(1500);
+      const desktop = await fetchVitals("desktop");
+
       res.json({ mobile, desktop });
     } catch (err: any) {
+      if (err.message === "RATE_LIMITED") {
+        return res.status(429).json({
+          error: "RATE_LIMITED",
+          message: "Google PageSpeed Insights rate limit reached. Please wait a minute and try again, or add a free Google API key (GOOGLE_PAGESPEED_API_KEY) for a much higher quota."
+        });
+      }
       res.status(500).json({ error: "Failed to fetch Core Web Vitals: " + (err.message || "Unknown error") });
     }
   });
