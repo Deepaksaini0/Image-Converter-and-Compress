@@ -1787,8 +1787,8 @@ ${Array.from(visited).map(page => {
       const queue   = [url];
       const pages: any[] = [];
 
-      // ── Crawl up to 5 pages ───────────────────────────────────────────────
-      while (queue.length > 0 && visited.size < 5) {
+      // ── Crawl up to 20 pages ──────────────────────────────────────────────
+      while (queue.length > 0 && visited.size < 20) {
         const pageUrl = queue.shift()!;
         if (visited.has(pageUrl)) continue;
         visited.add(pageUrl);

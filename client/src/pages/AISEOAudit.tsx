@@ -31,25 +31,24 @@ interface AuditReport {
 }
 
 // ── Circular score ring ───────────────────────────────────────────────────────
-function ScoreRing({ score, size = 140, label }: { score: number; size?: number; label?: string }) {
-  const r   = (size - 16) / 2;
+function ScoreRing({ score, size = 140 }: { score: number; size?: number }) {
+  const r    = (size - 16) / 2;
   const circ = 2 * Math.PI * r;
   const pct  = Math.max(0, Math.min(100, score));
   const dash = (pct / 100) * circ;
   const color = pct >= 80 ? "#22c55e" : pct >= 60 ? "#f59e0b" : "#ef4444";
   return (
-    <div className="flex flex-col items-center gap-1">
-      <svg width={size} height={size} className="-rotate-90">
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90 absolute inset-0">
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="currentColor" strokeWidth={10} className="text-muted/20" />
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={10}
           strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
           style={{ transition: "stroke-dasharray 1s ease" }} />
       </svg>
-      <div className="absolute flex flex-col items-center justify-center" style={{ marginTop: -(size * 0.6) }}>
-        <span className="text-3xl font-black leading-none" style={{ color }}>{pct}</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-4xl font-black leading-none" style={{ color }}>{pct}</span>
         <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">/ 100</span>
       </div>
-      {label && <p className="text-xs font-semibold text-muted-foreground mt-1">{label}</p>}
     </div>
   );
 }
@@ -357,7 +356,7 @@ export default function AISEOAudit() {
                       </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                      <Button variant="outline" size="sm" gap-2 onClick={() => setReport(null)} className="gap-1.5">
+                      <Button variant="outline" size="sm" onClick={() => setReport(null)} className="gap-1.5">
                         <RefreshCw className="h-3.5 w-3.5" /> New Audit
                       </Button>
                       <Button size="sm" onClick={() => downloadReport(report)} className="gap-1.5">
@@ -370,14 +369,8 @@ export default function AISEOAudit() {
                 <CardContent className="p-6">
                   <div className="grid md:grid-cols-[auto_1fr] gap-8 items-center">
                     {/* Score ring */}
-                    <div className="flex justify-center relative" style={{ width: 140, height: 140 }}>
-                      <ScoreRing score={report.score} />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className={`text-3xl font-black leading-none ${report.score >= 80 ? "text-green-500" : report.score >= 60 ? "text-amber-500" : "text-red-500"}`}>
-                          {report.score}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-semibold">/ 100</span>
-                      </div>
+                    <div className="flex justify-center">
+                      <ScoreRing score={report.score} size={148} />
                     </div>
 
                     {/* Category bars */}
