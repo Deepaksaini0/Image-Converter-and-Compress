@@ -157,7 +157,7 @@ export function Sidebar({
             )}
           </div>
           <Input
-            placeholder="© 2024 Your Name"
+            placeholder="© 2026 Your Name"
             value={options.watermarkText || ""}
             onChange={(e) =>
               updateOption("watermarkText", e.target.value || undefined)
