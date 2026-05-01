@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Cropper, CropperRef, CircleStencil } from 'react-advanced-cropper';
 import 'react-advanced-cropper/dist/style.css';
 import { Button } from '@/components/ui/button';
@@ -17,50 +17,48 @@ interface ImageEditorProps {
 }
 
 export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
-  const [cropper, setCropper] = useState<CropperRef | null>(null);
+  const cropperRef = useRef<CropperRef | null>(null);
   const [resize, setResize] = useState({ width: 0, height: 0, originalWidth: 0, originalHeight: 0 });
   const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
-  const [lockAspectRatio, setLockAspectRatio] = useState(true);
+  const [lockAspectRatioState, setLockAspectRatio] = useState(true);
+  const lockRef = useRef(true);
   const [rotation, setRotation] = useState(0);
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
+  const bgColorRef = useRef('#ffffff');
+
+  const syncLock = (v: boolean) => { lockRef.current = v; setLockAspectRatio(v); };
+  const syncBg   = (v: string)  => { bgColorRef.current = v; setBackgroundColor(v); };
 
   const handleUpdate = (ref: CropperRef) => {
-    setCropper(ref);
+    cropperRef.current = ref;
     const state = ref.getState();
-    const image = ref.getImage();
-    
-    if (state && state.coordinates) {
+    const img   = ref.getImage();
+    if (state?.coordinates) {
       setResize(prev => ({
         ...prev,
         width: Math.round(state.coordinates.width),
         height: Math.round(state.coordinates.height),
-        originalWidth: image?.width || 0,
-        originalHeight: image?.height || 0
+        originalWidth:  img?.width  || 0,
+        originalHeight: img?.height || 0,
       }));
     }
   };
 
-  const handleRotate = () => {
-    setRotation((prev) => (prev + 90) % 360);
-  };
+  const handleRotate = useCallback(() => {
+    setRotation(prev => (prev + 90) % 360);
+  }, []);
 
   const handleResizeWidth = (val: string) => {
     const width = parseInt(val) || 0;
-    if (width > 0 && cropper) {
-      const state = cropper.getState();
+    const c = cropperRef.current;
+    if (width > 0 && c) {
+      const state = c.getState();
       if (state?.coordinates) {
-        if (lockAspectRatio) {
+        if (lockRef.current) {
           const ratio = state.coordinates.height / state.coordinates.width;
-          cropper.setCoordinates({
-            ...state.coordinates,
-            width,
-            height: Math.round(width * ratio)
-          });
+          c.setCoordinates({ ...state.coordinates, width, height: Math.round(width * ratio) });
         } else {
-          cropper.setCoordinates({
-            ...state.coordinates,
-            width
-          });
+          c.setCoordinates({ ...state.coordinates, width });
         }
       }
     }
@@ -68,89 +66,65 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
 
   const handleResizeHeight = (val: string) => {
     const height = parseInt(val) || 0;
-    if (height > 0 && cropper) {
-      const state = cropper.getState();
+    const c = cropperRef.current;
+    if (height > 0 && c) {
+      const state = c.getState();
       if (state?.coordinates) {
-        if (lockAspectRatio) {
+        if (lockRef.current) {
           const ratio = state.coordinates.width / state.coordinates.height;
-          cropper.setCoordinates({
-            ...state.coordinates,
-            height,
-            width: Math.round(height * ratio)
-          });
+          c.setCoordinates({ ...state.coordinates, height, width: Math.round(height * ratio) });
         } else {
-          cropper.setCoordinates({
-            ...state.coordinates,
-            height
-          });
+          c.setCoordinates({ ...state.coordinates, height });
         }
       }
     }
   };
 
-  const handleSave = () => {
-    if (cropper) {
-      const canvas = cropper.getCanvas();
-      if (canvas) {
-        // Create a new canvas with background color
-        const bgCanvas = document.createElement('canvas');
-        bgCanvas.width = canvas.width;
-        bgCanvas.height = canvas.height;
-        const ctx = bgCanvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = backgroundColor;
-          ctx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
-          ctx.drawImage(canvas, 0, 0);
-          bgCanvas.toBlob((blob) => {
-            if (blob) {
-              onSave(blob);
-            }
-          }, 'image/jpeg', 0.9);
-        }
-      }
-    }
+  const buildOutputCanvas = () => {
+    const c = cropperRef.current;
+    if (!c) return null;
+    const canvas = c.getCanvas();
+    if (!canvas) return null;
+    const bg = document.createElement('canvas');
+    bg.width  = canvas.width;
+    bg.height = canvas.height;
+    const ctx = bg.getContext('2d')!;
+    ctx.fillStyle = bgColorRef.current;
+    ctx.fillRect(0, 0, bg.width, bg.height);
+    ctx.drawImage(canvas, 0, 0);
+    return bg;
   };
 
-  const handleDownload = () => {
-    if (cropper) {
-      const canvas = cropper.getCanvas();
-      if (canvas) {
-        const bgCanvas = document.createElement('canvas');
-        bgCanvas.width = canvas.width;
-        bgCanvas.height = canvas.height;
-        const ctx = bgCanvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = backgroundColor;
-          ctx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
-          ctx.drawImage(canvas, 0, 0);
-          const link = document.createElement('a');
-          link.download = `edited-image-${Date.now()}.jpg`;
-          link.href = bgCanvas.toDataURL('image/jpeg', 0.9);
-          link.click();
-        }
-      }
+  const handleSave = useCallback(() => {
+    const bg = buildOutputCanvas();
+    if (bg) {
+      bg.toBlob(blob => { if (blob) onSave(blob); }, 'image/jpeg', 0.9);
     }
-  };
+  }, [onSave]);
+
+  const handleDownload = useCallback(() => {
+    const bg = buildOutputCanvas();
+    if (bg) {
+      const link = document.createElement('a');
+      link.download = `edited-image-${Date.now()}.jpg`;
+      link.href = bg.toDataURL('image/jpeg', 0.9);
+      link.click();
+    }
+  }, []);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === 's') {
-          e.preventDefault();
-          handleSave();
-        } else if (e.key === 'd') {
-          e.preventDefault();
-          handleDownload();
-        }
+        if (e.key === 's') { e.preventDefault(); handleSave(); }
+        else if (e.key === 'd') { e.preventDefault(); handleDownload(); }
       } else if (e.key === 'r') {
         handleRotate();
       } else if (e.key === 'Escape') {
         onClose();
       }
     };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [handleSave, handleDownload, handleRotate, onClose]);
 
   return (
@@ -240,14 +214,14 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
                       key={color}
                       className={`h-7 w-7 rounded-md border-2 transition-all hover:scale-110 ${backgroundColor === color ? 'border-primary ring-2 ring-primary/20' : 'border-transparent'}`}
                       style={{ backgroundColor: color }}
-                      onClick={() => setBackgroundColor(color)}
+                      onClick={() => syncBg(color)}
                     />
                   ))}
                   <div className="relative h-7 w-7 rounded-md border-2 border-dashed border-muted-foreground/30 overflow-hidden hover:border-primary transition-colors">
                     <input
                       type="color"
                       value={backgroundColor}
-                      onChange={(e) => setBackgroundColor(e.target.value)}
+                      onChange={(e) => syncBg(e.target.value)}
                       className="absolute inset-[-5px] w-[200%] h-[200%] cursor-pointer"
                     />
                   </div>
@@ -264,12 +238,12 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
                   <div className="flex items-center gap-2 px-2 py-1 bg-muted/50 rounded-md">
                     <Checkbox 
                       id="lock-ratio" 
-                      checked={lockAspectRatio} 
-                      onCheckedChange={(checked) => setLockAspectRatio(!!checked)} 
+                      checked={lockAspectRatioState} 
+                      onCheckedChange={(checked) => syncLock(!!checked)} 
                       className="h-3 w-3"
                     />
                     <Label htmlFor="lock-ratio" className="text-[10px] cursor-pointer flex items-center gap-1 font-medium">
-                      {lockAspectRatio ? <Lock className="h-2.5 w-2.5" /> : <Unlock className="h-2.5 w-2.5" />}
+                      {lockAspectRatioState ? <Lock className="h-2.5 w-2.5" /> : <Unlock className="h-2.5 w-2.5" />}
                       Lock
                     </Label>
                   </div>
@@ -295,8 +269,8 @@ export function ImageEditor({ image, onSave, onClose }: ImageEditorProps) {
                         type="number"
                         value={resize.height}
                         onChange={(e) => handleResizeHeight(e.target.value)}
-                        className={`h-9 pr-7 text-xs font-mono focus:ring-1 focus:ring-primary ${lockAspectRatio ? 'bg-muted/30 cursor-not-allowed opacity-70' : ''}`}
-                        readOnly={lockAspectRatio}
+                        className={`h-9 pr-7 text-xs font-mono focus:ring-1 focus:ring-primary ${lockAspectRatioState ? 'bg-muted/30 cursor-not-allowed opacity-70' : ''}`}
+                        readOnly={lockAspectRatioState}
                       />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-muted-foreground group-focus-within:text-primary transition-colors">PX</span>
                     </div>
