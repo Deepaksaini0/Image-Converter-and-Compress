@@ -11,6 +11,7 @@ import SEOAuditPage from "@/pages/SEOAudit";
 import SEOAuditToolsPage from "@/pages/SEOAuditTools";
 import TextToHTMLPage from "@/pages/TextToHTML";
 import WebToolsPage from "@/pages/WebTools";
+import AISEOAuditPage from "@/pages/AISEOAudit";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
         <Route path="/llms" component={LLMPage} />
         <Route path="/seo-audit" component={SEOAuditPage} />
         <Route path="/seo-tools" component={SEOAuditToolsPage} />
+        <Route path="/free-seo-audit" component={AISEOAuditPage} />
         <Route path="/text-to-html" component={TextToHTMLPage} />
         <Route path="/web-tools" component={WebToolsPage} />
         <Route component={NotFound} />

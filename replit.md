@@ -1,8 +1,8 @@
-# Image Convert & Compress
+# Image Convert & Compress + SEO Tools
 
 ## Overview
 
-A comprehensive web application for image processing that supports conversion between formats, compression with quality control, merging multiple images, watermarking, and PDF export. The app uses Sharp for server-side image processing, providing high-quality results that browser-based solutions cannot match.
+A comprehensive web application combining image processing (conversion, compression, merging, watermarking, PDF export) with a full SEO tools suite (25+ tools) and an AI-powered free SEO audit landing page. The app uses Sharp for server-side image processing and OpenAI GPT-4 for AI features.
 
 ## User Preferences
 
@@ -31,12 +31,38 @@ The frontend is a single-page application with three main modes:
 - **Document Processing**: XLSX library for spreadsheet handling, pdf-parse for PDF reading
 - **Archive Creation**: Archiver for ZIP file generation
 
+### Pages / Routes
+- `/` — Image Convert & Compress (Home)
+- `/free-seo-audit` — AI-Powered Free SEO Audit (lead gen page)
+- `/seo-audit` — Full SEO Audit Dashboard (25+ tools)
+- `/seo-tools` — SEO Utility Tools (same tools, different layout)
+- `/text-to-html` — Text to HTML converter
+- `/web-tools` — Web utility tools
+- `/faq` — FAQ page
+
 ### API Structure
-All API endpoints are defined in `shared/routes.ts` with Zod validation:
+Image processing:
 - `POST /api/upload` - Upload multiple files
 - `POST /api/process` - Convert/compress images with options
 - `POST /api/merge` - Merge multiple images into one
 - `POST /api/convert-document` - Convert between document formats
+- `POST /api/image/remove-watermark` - Blur/lighten/darken a selected region
+
+SEO tools (all under `/api/seo/`):
+- `POST /api/seo-audit` - Full site crawl SEO audit (up to 1000 pages)
+- `POST /api/seo/ai-full-audit` - AI-powered audit (5 pages, GPT-4 insights, downloadable report)
+- `POST /api/seo/page-speed` - PageSpeed Insights via Google API
+- `POST /api/seo/rank-check` - Keyword rank checking
+- `POST /api/seo/broken-links` - Broken link checker
+- `POST /api/seo/readability` - Readability score
+- `POST /api/seo/ai-meta-tags` - AI meta tag generator
+- `GET  /api/seo/core-web-vitals` - Core Web Vitals
+- `POST /api/seo/word-count` - Word count checker
+- `POST /api/seo/keyword-gap` - Competitor keyword gap analysis
+- `POST /api/seo/content-match` - Content vs URL match tool
+- `POST /api/seo/slug-generator` - URL slug generator
+- `POST /api/seo/social-preview` - Social preview checker
+- …and more
 
 ### Data Flow
 1. Files uploaded via Multer → saved to `uploads/` directory

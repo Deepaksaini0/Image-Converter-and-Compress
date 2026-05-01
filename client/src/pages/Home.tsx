@@ -10,7 +10,7 @@ import { ResultCard } from "@/components/ResultCard";
 import { ImageEditor } from "@/components/ImageEditor";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Download, RotateCcw, Image as ImageIcon, FileText, HelpCircle, FileJson, Zap, Code, BarChart3 } from "lucide-react";
+import { ArrowLeft, Download, RotateCcw, Image as ImageIcon, FileText, HelpCircle, FileJson, Zap, Code, BarChart3, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -279,6 +279,12 @@ export default function Home() {
             <div className="flex items-center gap-2">
               {!showResults && (
                 <>
+                  <Link href="/free-seo-audit">
+                    <Button className="flex items-center gap-2 hover-elevate bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white border-0" data-testid="button-ai-seo-nav">
+                      <Sparkles className="h-4 w-4" />
+                      <span className="hidden sm:inline">Free SEO Audit</span>
+                    </Button>
+                  </Link>
                   <Link href="/seo-audit">
                     <Button variant="outline" className="flex items-center gap-2 hover-elevate" data-testid="button-seo-nav">
                       <Zap className="h-4 w-4" />
