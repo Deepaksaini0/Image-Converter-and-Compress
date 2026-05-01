@@ -781,6 +781,103 @@ Respond with ONLY the JSON object, no markdown or extra text.`;
   });
 
   // ── URL Slug Generator ─────────────────────────────────────────────────────
+  // ── Content Match Tool ─────────────────────────────────────────────────────
+  app.post("/api/seo/content-match", async (req, res) => {
+    try {
+      const { url, content } = req.body;
+      if (!url || !content) return res.status(400).json({ error: "URL and content are required" });
+
+      const r = await axios.get(url.startsWith("http") ? url : `https://${url}`, {
+        timeout: 10000, headers: { "User-Agent": "Mozilla/5.0" }
+      });
+      const $ = cheerio.load(r.data);
+      $("script,style,nav,header,footer,aside,noscript").remove();
+      const pageText = $("body").text().replace(/\s+/g, " ").trim().toLowerCase();
+
+      // Split user content into sentences
+      const sentences = content
+        .split(/(?<=[.!?])\s+|[\n]+/)
+        .map((s: string) => s.trim())
+        .filter((s: string) => s.length > 15);
+
+      // For each sentence check if it (or key phrases from it) appear on the page
+      const wordOverlap = (a: string, b: string): number => {
+        const wordsA = a.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(w => w.length > 3);
+        if (!wordsA.length) return 0;
+        const matches = wordsA.filter(w => b.includes(w));
+        return matches.length / wordsA.length;
+      };
+
+      const results = sentences.map((sentence: string) => {
+        const score = wordOverlap(sentence, pageText);
+        return { text: sentence, score, matched: score >= 0.6 };
+      });
+
+      const matched  = results.filter((r: {matched: boolean}) => r.matched).length;
+      const matchPct = Math.round((matched / results.length) * 100);
+
+      // Also return key phrases from page not in user content (bonus context)
+      const pageSentences = $("p,h1,h2,h3,li").map((_, el) => $(el).text().trim()).get()
+        .filter(s => s.length > 20).slice(0, 30);
+
+      res.json({ results, matchPct, total: results.length, matched, pageSentences });
+    } catch (err: any) {
+      res.status(500).json({ error: "Content match failed: " + (err.message || "Unknown error") });
+    }
+  });
+
+  // ── Watermark Remover ──────────────────────────────────────────────────────
+  const wmUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
+  app.post("/api/image/remove-watermark", wmUpload.single("image"), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: "Image required" });
+
+      const { x = "0", y = "0", w = "100", h = "100", method = "blur" } = req.body;
+      const img = sharp(req.file.buffer);
+      const meta = await img.metadata();
+      const iW = meta.width!;
+      const iH = meta.height!;
+
+      // Convert percentages to pixels
+      const left   = Math.max(0, Math.round((parseFloat(x) / 100) * iW));
+      const top    = Math.max(0, Math.round((parseFloat(y) / 100) * iH));
+      const width  = Math.min(iW - left, Math.max(1, Math.round((parseFloat(w) / 100) * iW)));
+      const height = Math.min(iH - top,  Math.max(1, Math.round((parseFloat(h) / 100) * iH)));
+
+      // Extract the watermark region
+      const regionBuf = await sharp(req.file.buffer).extract({ left, top, width, height }).toBuffer();
+
+      let processedRegion: Buffer;
+
+      if (method === "blur") {
+        // Heavy blur — removes text/logo watermarks effectively
+        processedRegion = await sharp(regionBuf).blur(Math.max(8, Math.round(Math.min(width, height) * 0.12))).toBuffer();
+      } else if (method === "lighten") {
+        // Lighten — works for dark watermarks
+        processedRegion = await sharp(regionBuf)
+          .modulate({ brightness: 1.4, saturation: 0.6 })
+          .blur(4).toBuffer();
+      } else {
+        // Darken — works for light/white watermarks
+        processedRegion = await sharp(regionBuf)
+          .modulate({ brightness: 0.6, saturation: 0.6 })
+          .blur(4).toBuffer();
+      }
+
+      // Composite the processed region back onto the original
+      const output = await sharp(req.file.buffer)
+        .composite([{ input: processedRegion, left, top }])
+        .jpeg({ quality: 95 })
+        .toBuffer();
+
+      res.set("Content-Type", "image/jpeg");
+      res.send(output);
+    } catch (err: any) {
+      res.status(500).json({ error: "Watermark removal failed: " + (err.message || "Unknown error") });
+    }
+  });
+
   app.post("/api/seo/slug-generator", async (req, res) => {
     try {
       const { title } = req.body;

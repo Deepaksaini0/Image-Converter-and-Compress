@@ -30,6 +30,8 @@ import { WordCountChecker } from "@/components/WordCountChecker";
 import { URLSlugGenerator } from "@/components/URLSlugGenerator";
 import { KeywordGapAnalyzer } from "@/components/KeywordGapAnalyzer";
 import { GSCImporter } from "@/components/GSCImporter";
+import { ContentMatchTool } from "@/components/ContentMatchTool";
+import { WatermarkRemover } from "@/components/WatermarkRemover";
 
 interface PageAudit {
   url: string; score: number;
@@ -285,6 +287,8 @@ export default function SEOAuditDashboard() {
             <TabsTrigger value="slug-gen" className="flex items-center gap-1.5 text-xs"><ArrowRight className="h-3 w-3" />Slug Generator</TabsTrigger>
             <TabsTrigger value="keyword-gap" className="flex items-center gap-1.5 text-xs"><BarChart3 className="h-3 w-3" />Keyword Gap</TabsTrigger>
             <TabsTrigger value="gsc-import" className="flex items-center gap-1.5 text-xs"><TrendingUp className="h-3 w-3" />GSC Import</TabsTrigger>
+            <TabsTrigger value="content-match" className="flex items-center gap-1.5 text-xs"><FileText className="h-3 w-3" />Content Match</TabsTrigger>
+            <TabsTrigger value="watermark" className="flex items-center gap-1.5 text-xs"><Image className="h-3 w-3" />Watermark Remove</TabsTrigger>
           </TabsList>
 
           {/* ── Site Audit ── */}
@@ -775,6 +779,16 @@ export default function SEOAuditDashboard() {
           {/* ── GSC Importer ── */}
           <TabsContent value="gsc-import">
             <GSCImporter />
+          </TabsContent>
+
+          {/* ── Content Match ── */}
+          <TabsContent value="content-match">
+            <ContentMatchTool />
+          </TabsContent>
+
+          {/* ── Watermark Remover ── */}
+          <TabsContent value="watermark">
+            <WatermarkRemover />
           </TabsContent>
         </Tabs>
       </div>
