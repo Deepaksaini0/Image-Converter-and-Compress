@@ -593,6 +593,132 @@ export default function Home() {
             )}
           </AnimatePresence>
         </div>
+
+        {/* ── SEO Content Section ────────────────────────────────────────── */}
+        <section className="relative z-10 border-t border-border/40 bg-muted/30 mt-8">
+          <div className="max-w-6xl mx-auto px-4 py-12 md:px-8">
+
+            {/* Primary heading */}
+            <div className="text-center mb-10">
+              <h2 className="text-2xl sm:text-3xl font-black mb-3">
+                Best Free SEO Tools — All-in-One AI SEO Audit Platform
+              </h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto text-sm leading-relaxed">
+                The most comprehensive <strong>free SEO audit tool</strong> available. Get instant <strong>website SEO analysis</strong>, <strong>technical SEO audit</strong>, <strong>on-page SEO checker</strong>, and AI-powered recommendations — all at zero cost. A true <strong>Ahrefs alternative free</strong> and <strong>SEMrush alternative free</strong> for every website owner.
+              </p>
+            </div>
+
+            {/* 2-column keyword-rich feature grid */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+              {[
+                {
+                  icon: "🔍",
+                  title: "Free SEO Audit Tool & SEO Checker Free",
+                  body: "Run a complete <strong>free SEO audit</strong> in seconds. Our <strong>SEO checker free</strong> tool crawls up to 20 pages, checks all on-page factors, and generates a prioritised list of fixes — no account needed.",
+                },
+                {
+                  icon: "🤖",
+                  title: "AI SEO Tool & AI Content Optimization",
+                  body: "Powered by GPT-4, our <strong>AI SEO tool</strong> delivers an expert executive summary, EEAT analysis, and a full <strong>AI content optimization</strong> plan. Fix your content strategy with AI-generated guidance.",
+                },
+                {
+                  icon: "⚙️",
+                  title: "Technical SEO Audit",
+                  body: "Full <strong>technical SEO audit</strong>: HTTPS, canonical tags, robots.txt, XML sitemap, viewport meta, Core Web Vitals, schema markup, page speed, and render-blocking scripts — all in one <strong>website SEO analysis</strong>.",
+                },
+                {
+                  icon: "📄",
+                  title: "On-Page SEO Checker & SEO Score Checker",
+                  body: "Our <strong>on-page SEO checker</strong> reviews title tags, meta descriptions, H1–H3 headings, alt text, and internal links. Your <strong>SEO score checker</strong> shows a 0–100 score with exact fixes to boost it.",
+                },
+                {
+                  icon: "🔑",
+                  title: "Keyword Gap Analysis Tool",
+                  body: "Discover keywords your competitors rank for that you're missing. Our <strong>keyword gap analysis tool</strong> surfaces high-opportunity, low-difficulty terms so you know exactly what content to create next.",
+                },
+                {
+                  icon: "🏆",
+                  title: "Competitor SEO Analysis Tool",
+                  body: "Identify your top 3 SEO competitors and see exactly what advantages they have. Our <strong>competitor SEO analysis tool</strong> shows gaps and your own strengths — so you can outrank them faster.",
+                },
+                {
+                  icon: "📊",
+                  title: "SEO Audit Report Generator",
+                  body: "Generate a white-label <strong>SEO audit report</strong> in one click. Download a professional HTML report with scores, issues, roadmap, EEAT, and keyword opportunities — ready to share with clients.",
+                },
+                {
+                  icon: "📈",
+                  title: "SEO Rank Checker & Website Ranking Checker",
+                  body: "Understand <strong>why my website is not ranking</strong> with our <strong>website ranking checker</strong>. Get a clear SEO score, issue breakdown, and a 90-day roadmap that predicts your traffic improvement.",
+                },
+                {
+                  icon: "🛒",
+                  title: "SEO Audit for WordPress & Ecommerce",
+                  body: "Whether you need an <strong>SEO audit for WordPress</strong> or an <strong>SEO audit for ecommerce website</strong>, our crawler handles any CMS. Get product-page and category-level recommendations out of the box.",
+                },
+              ].map(({ icon, title, body }) => (
+                <div key={title} className="rounded-xl border bg-card p-5 hover:shadow-md transition-shadow">
+                  <div className="text-2xl mb-2">{icon}</div>
+                  <h3 className="font-bold text-sm mb-2">{title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: body }} />
+                </div>
+              ))}
+            </div>
+
+            {/* Why use / FAQ row */}
+            <div className="grid sm:grid-cols-2 gap-5 mb-8">
+              <div className="rounded-xl border bg-card p-5">
+                <h3 className="font-bold mb-3 flex items-center gap-2 text-sm">
+                  <span>❓</span> Why Is My Website Not Ranking?
+                </h3>
+                <ul className="space-y-2 text-xs text-muted-foreground">
+                  {[
+                    "Missing or duplicate title tags and meta descriptions",
+                    "No XML sitemap or robots.txt blocking crawlers",
+                    "Thin content (under 300 words) on key pages",
+                    "No structured data (Schema.org) for rich results",
+                    "Poor Core Web Vitals — slow LCP, high CLS",
+                    "Weak EEAT signals — no author info or external links",
+                  ].map(r => (
+                    <li key={r} className="flex items-start gap-2">
+                      <span className="text-red-500 shrink-0">✗</span> {r}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-xl border bg-card p-5">
+                <h3 className="font-bold mb-3 flex items-center gap-2 text-sm">
+                  <span>✅</span> How to Improve Your Website SEO Score
+                </h3>
+                <ul className="space-y-2 text-xs text-muted-foreground">
+                  {[
+                    "Run a free technical SEO audit and fix critical issues first",
+                    "Use our on-page SEO checker to optimise every page title",
+                    "Add JSON-LD structured data for Organisation and WebPage",
+                    "Build internal links between related pages to spread authority",
+                    "Close competitor keyword gaps with targeted content",
+                    "Improve Core Web Vitals: compress images, defer JS, use CDN",
+                  ].map(r => (
+                    <li key={r} className="flex items-start gap-2">
+                      <span className="text-green-500 shrink-0">✓</span> {r}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Bottom keyword strip */}
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground leading-loose">
+                <strong>Free SEO Audit Tool</strong> &nbsp;·&nbsp; <strong>SEO Checker Free</strong> &nbsp;·&nbsp; <strong>Website SEO Analysis</strong> &nbsp;·&nbsp; <strong>AI SEO Tool</strong> &nbsp;·&nbsp; <strong>Technical SEO Audit</strong> &nbsp;·&nbsp;
+                <strong>On-Page SEO Checker</strong> &nbsp;·&nbsp; <strong>Keyword Gap Analysis Tool</strong> &nbsp;·&nbsp; <strong>SEO Audit Report Generator</strong> &nbsp;·&nbsp; <strong>SEO Score Checker</strong> &nbsp;·&nbsp;
+                <strong>Competitor SEO Analysis Tool</strong> &nbsp;·&nbsp; <strong>Ahrefs Alternative Free</strong> &nbsp;·&nbsp; <strong>SEMrush Alternative Free</strong> &nbsp;·&nbsp; <strong>SEO Rank Checker Tool</strong> &nbsp;·&nbsp;
+                <strong>Website Ranking Checker</strong> &nbsp;·&nbsp; <strong>SEO Audit for WordPress</strong> &nbsp;·&nbsp; <strong>SEO Audit for Ecommerce Website</strong> &nbsp;·&nbsp; <strong>AI Content Optimization Tool</strong>
+              </p>
+            </div>
+          </div>
+        </section>
+
       </main>
     </div>
   );
