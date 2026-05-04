@@ -64,6 +64,51 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
+
+  // ── robots.txt ─────────────────────────────────────────────────────────────
+  app.get("/robots.txt", (_req, res) => {
+    res.type("text/plain").send(
+`User-agent: *
+Allow: /
+
+Sitemap: https://imageconvert.tools/sitemap.xml
+
+# Key pages
+Allow: /
+Allow: /free-seo-audit
+Allow: /seo-audit
+Allow: /seo-tools
+Allow: /text-to-html
+Allow: /web-tools
+Allow: /faq
+`);
+  });
+
+  // ── sitemap.xml ────────────────────────────────────────────────────────────
+  app.get("/sitemap.xml", (_req, res) => {
+    const base = "https://imageconvert.tools";
+    const today = new Date().toISOString().split("T")[0];
+    const pages = [
+      { loc: "/",               priority: "1.0", changefreq: "weekly"  },
+      { loc: "/free-seo-audit", priority: "0.9", changefreq: "weekly"  },
+      { loc: "/seo-audit",      priority: "0.9", changefreq: "weekly"  },
+      { loc: "/seo-tools",      priority: "0.9", changefreq: "weekly"  },
+      { loc: "/text-to-html",   priority: "0.7", changefreq: "monthly" },
+      { loc: "/web-tools",      priority: "0.7", changefreq: "monthly" },
+      { loc: "/faq",            priority: "0.6", changefreq: "monthly" },
+    ];
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${pages.map(p => `  <url>
+    <loc>${base}${p.loc}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`).join("\n")}
+</urlset>`;
+    res.type("application/xml").send(xml);
+  });
+
   // Reviews API
   app.get("/api/reviews", async (req, res) => {
     try {
