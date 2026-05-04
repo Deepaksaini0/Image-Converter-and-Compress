@@ -1775,6 +1775,15 @@ ${Array.from(visited).map(page => {
     }
   });
 
+  // ── In-memory audit report cache (shareable links, 24 h TTL) ──────────────
+  const auditReportCache = new Map<string, { report: any; expires: number }>();
+
+  app.get("/api/seo/audit-report/:id", async (req, res) => {
+    const entry = auditReportCache.get(req.params.id);
+    if (!entry || entry.expires < Date.now()) return res.status(404).json({ error: "Report not found or has expired" });
+    res.json(entry.report);
+  });
+
   // ── AI-Powered Full SEO Audit ──────────────────────────────────────────────
   app.post("/api/seo/ai-full-audit", async (req, res) => {
     try {
@@ -1782,10 +1791,26 @@ ${Array.from(visited).map(page => {
       if (!url || typeof url !== "string") return res.status(400).json({ error: "URL required" });
       try { new URL(url); } catch { return res.status(400).json({ error: "Invalid URL format" }); }
 
-      const domain = new URL(url).hostname;
-      const visited = new Set<string>();
-      const queue   = [url];
+      const domain   = new URL(url).hostname;
+      const isHttps  = url.startsWith("https://");
+      const proto    = isHttps ? "https" : "http";
+      const visited  = new Set<string>();
+      const queue    = [url];
       const pages: any[] = [];
+      let totalScripts  = 0;
+      let totalPageSize = 0;
+
+      // ── robots.txt + sitemap ──────────────────────────────────────────────
+      let hasRobots  = false;
+      let hasSitemap = false;
+      try {
+        const rb = await axios.get(`${proto}://${domain}/robots.txt`, { timeout: 5000, headers: { "User-Agent": "SEOAuditBot/1.0" } });
+        hasRobots  = rb.status === 200 && rb.data.includes("User-agent");
+        hasSitemap = rb.data.toLowerCase().includes("sitemap");
+      } catch {}
+      if (!hasSitemap) {
+        try { const sm = await axios.get(`${proto}://${domain}/sitemap.xml`, { timeout: 5000 }); hasSitemap = sm.status === 200; } catch {}
+      }
 
       // ── Crawl up to 20 pages ──────────────────────────────────────────────
       while (queue.length > 0 && visited.size < 20) {
@@ -1794,67 +1819,81 @@ ${Array.from(visited).map(page => {
         visited.add(pageUrl);
         try {
           const r = await axios.get(pageUrl, { timeout: 10000, headers: { "User-Agent": "SEOAuditBot/1.0" } });
-          const $ = cheerio.load(r.data);
+          const $  = cheerio.load(r.data);
+          const pageSize = Buffer.byteLength(r.data as string, "utf8");
+          totalPageSize += pageSize;
 
-          // ── Per-page analysis ───────────────────────────────────────────
-          const title        = $("title").text().trim();
-          const metaDesc     = $('meta[name="description"]').attr("content") || "";
-          const canonical    = $('link[rel="canonical"]').attr("href") || "";
-          const viewport     = $('meta[name="viewport"]').attr("content") || "";
-          const robots       = $('meta[name="robots"]').attr("content") || "";
-          const h1s          = $("h1").map((_, e) => $(e).text().trim()).get();
-          const h2s          = $("h2").map((_, e) => $(e).text().trim()).get();
-          const imgsNoAlt    = $("img:not([alt])").length;
-          const totalImgs    = $("img").length;
-          const internalLinks= $(`a[href^="/"], a[href*="${domain}"]`).length;
-          const ogTags       = $('meta[property^="og:"]').length;
-          const schemaJSON   = $('script[type="application/ld+json"]').length;
-          const bodyText     = $("body").text().replace(/\s+/g, " ").trim();
-          const wordCount    = bodyText.split(/\s+/).filter(Boolean).length;
-          const hasFavicon   = $('link[rel*="icon"]').length > 0;
+          const title         = $("title").text().trim();
+          const metaDesc      = $('meta[name="description"]').attr("content") || "";
+          const canonical     = $('link[rel="canonical"]').attr("href") || "";
+          const viewport      = $('meta[name="viewport"]').attr("content") || "";
+          const h1s           = $("h1").map((_, e) => $(e).text().trim()).get();
+          const h2s           = $("h2").map((_, e) => $(e).text().trim()).get();
+          const imgsNoAlt     = $("img:not([alt])").length;
+          const totalImgs     = $("img").length;
+          const internalLinks = $(`a[href^="/"], a[href*="${domain}"]`).length;
+          const externalLinks = $("a[href^='http']").not(`[href*="${domain}"]`).length;
+          const ogTags        = $('meta[property^="og:"]').length;
+          const twitterTags   = $('meta[name^="twitter:"]').length;
+          const schemaJSON    = $('script[type="application/ld+json"]').length;
+          const scripts       = $("script[src]").length;
+          const lazyImgs      = $("img[loading='lazy']").length;
+          const hasAuthor     = $('[rel="author"], .author, [itemprop="author"]').length > 0;
+          const hasDate       = $('[itemprop="datePublished"], time[datetime], .post-date, .published').length > 0;
+          const hasFavicon    = $('link[rel*="icon"]').length > 0;
+          const bodyText      = $("body").text().replace(/\s+/g, " ").trim();
+          const wordCount     = bodyText.split(/\s+/).filter(Boolean).length;
+          totalScripts += scripts;
 
-          // Title length check
-          const titleIssues: any[] = [];
-          if (!title) titleIssues.push({ id: "no-title", category: "On-Page", severity: "critical", issue: "Missing title tag", fix: `Add a unique, descriptive title tag (50–60 chars) to <head>. Example: <title>Your Brand – Main Keyword</title>` });
-          else if (title.length < 30) titleIssues.push({ id: "title-short", category: "On-Page", severity: "warning", issue: `Title too short (${title.length} chars): "${title}"`, fix: "Expand your title to 50–60 characters, including the primary keyword near the start." });
-          else if (title.length > 65) titleIssues.push({ id: "title-long", category: "On-Page", severity: "warning", issue: `Title too long (${title.length} chars), may be truncated in SERPs`, fix: "Trim title to under 60 characters while keeping primary keyword near the start." });
+          const issues: any[] = [];
 
-          // Meta description
-          if (!metaDesc) titleIssues.push({ id: "no-meta-desc", category: "On-Page", severity: "critical", issue: "Missing meta description", fix: "Add a unique meta description (150–160 chars) summarising the page for searchers. Example: <meta name='description' content='...'>" });
-          else if (metaDesc.length < 70) titleIssues.push({ id: "meta-short", category: "On-Page", severity: "warning", issue: `Meta description too short (${metaDesc.length} chars)`, fix: "Expand to 150–160 characters to fill the SERP snippet and improve click-through rate." });
-          else if (metaDesc.length > 165) titleIssues.push({ id: "meta-long", category: "On-Page", severity: "warning", issue: `Meta description too long (${metaDesc.length} chars), will be cut off`, fix: "Shorten to under 160 characters." });
+          // On-Page
+          if (!title) issues.push({ id: "no-title", category: "On-Page", severity: "critical", issue: "Missing <title> tag", fix: "Add a unique title (50–60 chars): <title>Primary Keyword – Brand</title>" });
+          else if (title.length < 30) issues.push({ id: "title-short", category: "On-Page", severity: "warning", issue: `Title too short (${title.length} chars): "${title}"`, fix: "Expand to 50–60 characters, lead with the primary keyword." });
+          else if (title.length > 65) issues.push({ id: "title-long", category: "On-Page", severity: "warning", issue: `Title too long (${title.length} chars) — truncated in SERPs`, fix: "Trim to under 60 characters keeping primary keyword near the start." });
 
-          // H1
-          if (h1s.length === 0) titleIssues.push({ id: "no-h1", category: "On-Page", severity: "critical", issue: "Missing H1 tag", fix: "Add exactly one H1 tag with your primary keyword: <h1>Primary Keyword – Benefit</h1>" });
-          else if (h1s.length > 1) titleIssues.push({ id: "multi-h1", category: "On-Page", severity: "warning", issue: `Multiple H1 tags found (${h1s.length})`, fix: "Keep only one H1. Convert extras to H2 or H3 to maintain proper heading hierarchy." });
+          if (!metaDesc) issues.push({ id: "no-meta-desc", category: "On-Page", severity: "critical", issue: "Missing meta description", fix: "Add a compelling meta description (150–160 chars) with primary keyword and a CTA." });
+          else if (metaDesc.length < 70) issues.push({ id: "meta-short", category: "On-Page", severity: "warning", issue: `Meta description too short (${metaDesc.length} chars)`, fix: "Expand to 150–160 characters to maximise SERP click-through rate." });
+          else if (metaDesc.length > 165) issues.push({ id: "meta-long", category: "On-Page", severity: "warning", issue: `Meta description too long (${metaDesc.length} chars) — cut off in SERPs`, fix: "Shorten to under 160 characters." });
 
-          // Alt text
-          if (imgsNoAlt > 0) titleIssues.push({ id: "img-alt", category: "On-Page", severity: "warning", issue: `${imgsNoAlt} of ${totalImgs} images missing alt text`, fix: `Add descriptive alt attributes to every image. Example: <img src="..." alt="Describe what's in the image">` });
+          if (h1s.length === 0) issues.push({ id: "no-h1", category: "On-Page", severity: "critical", issue: "No H1 heading found", fix: "Add exactly one H1 with your primary keyword: <h1>Keyword – Value Proposition</h1>" });
+          else if (h1s.length > 1) issues.push({ id: "multi-h1", category: "On-Page", severity: "warning", issue: `Multiple H1 tags (${h1s.length}) — confuses search engines`, fix: "Keep exactly one H1. Demote extras to H2 or H3." });
+
+          if (imgsNoAlt > 0) issues.push({ id: "img-alt", category: "On-Page", severity: "warning", issue: `${imgsNoAlt}/${totalImgs} images missing alt text`, fix: `Add descriptive alt text to every image: <img alt="describe image content">` });
 
           // Technical
-          if (!canonical) titleIssues.push({ id: "no-canonical", category: "Technical", severity: "warning", issue: "Missing canonical tag", fix: "Add <link rel='canonical' href='https://yourdomain.com/page'> to prevent duplicate content issues." });
-          if (!viewport) titleIssues.push({ id: "no-viewport", category: "Technical", severity: "critical", issue: "Missing viewport meta tag — page may not be mobile-friendly", fix: "Add <meta name='viewport' content='width=device-width, initial-scale=1'> inside <head>." });
-          if (!hasFavicon) titleIssues.push({ id: "no-favicon", category: "Technical", severity: "info", issue: "No favicon found", fix: "Add a favicon with <link rel='icon' href='/favicon.ico'>. It improves brand trust in browser tabs and bookmarks." });
+          if (!isHttps) issues.push({ id: "no-https", category: "Technical", severity: "critical", issue: "Not using HTTPS — major trust and ranking signal missing", fix: "Install an SSL certificate immediately. Most hosts offer free SSL via Let's Encrypt." });
+          if (!canonical) issues.push({ id: "no-canonical", category: "Technical", severity: "warning", issue: "No canonical tag — duplicate content risk", fix: `Add <link rel="canonical" href="${pageUrl}"> in <head>.` });
+          if (!viewport) issues.push({ id: "no-viewport", category: "Technical", severity: "critical", issue: "Missing viewport meta tag — not mobile-friendly", fix: `Add <meta name="viewport" content="width=device-width, initial-scale=1"> in <head>.` });
+          if (!hasFavicon) issues.push({ id: "no-favicon", category: "Technical", severity: "info", issue: "No favicon detected", fix: "Add <link rel='icon' href='/favicon.ico'> for brand recognition in browser tabs." });
+          if (!hasRobots) issues.push({ id: "no-robots", category: "Technical", severity: "warning", issue: "No robots.txt found", fix: "Create /robots.txt to control crawler access and include a Sitemap directive." });
+          if (!hasSitemap) issues.push({ id: "no-sitemap", category: "Technical", severity: "warning", issue: "No XML sitemap found", fix: "Create and submit /sitemap.xml to Google Search Console for faster indexing." });
+          if (pageSize > 300000) issues.push({ id: "large-page", category: "Technical", severity: "warning", issue: `Page size ${Math.round(pageSize / 1024)}KB — may slow load`, fix: "Minify HTML/CSS/JS, compress images, and use a CDN. Target under 100KB." });
+          if (scripts > 10) issues.push({ id: "too-many-scripts", category: "Technical", severity: "warning", issue: `${scripts} render-blocking scripts — hurts Core Web Vitals`, fix: "Defer non-critical scripts with async/defer. Remove unused third-party scripts." });
+          if (lazyImgs === 0 && totalImgs > 3) issues.push({ id: "no-lazy-load", category: "Technical", severity: "warning", issue: "Images not using lazy loading", fix: "Add loading='lazy' to below-fold images to improve LCP and page speed." });
+          if (schemaJSON === 0) issues.push({ id: "no-schema", category: "Technical", severity: "warning", issue: "No structured data (Schema.org) found", fix: "Add JSON-LD markup: Organization, WebPage, BreadcrumbList. Helps earn rich results in SERPs." });
 
           // Content
-          if (wordCount < 300) titleIssues.push({ id: "thin-content", category: "Content", severity: "critical", issue: `Thin content — only ${wordCount} words on page`, fix: "Aim for at least 600–800 words on key pages. Cover the topic comprehensively to outrank competitors." });
-          if (ogTags < 3) titleIssues.push({ id: "og-tags", category: "Content", severity: "warning", issue: `Only ${ogTags} Open Graph tags — social sharing previews will be poor`, fix: "Add og:title, og:description, og:image, og:url. These control how your page looks when shared on Facebook, LinkedIn, X, etc." });
-          if (schemaJSON === 0) titleIssues.push({ id: "no-schema", category: "Technical", severity: "warning", issue: "No JSON-LD structured data found", fix: "Add Schema.org markup (Organization, WebPage, BreadcrumbList) to help Google understand your content and earn rich results." });
-          if (internalLinks < 3) titleIssues.push({ id: "few-links", category: "Content", severity: "info", issue: `Only ${internalLinks} internal links — weak site architecture`, fix: "Add contextual internal links to related pages. This distributes PageRank and helps users navigate your site." });
-          if (h2s.length === 0 && wordCount > 300) titleIssues.push({ id: "no-h2", category: "Content", severity: "warning", issue: "No H2 subheadings found — poor content structure", fix: "Break up long content with H2 and H3 headings that include supporting keywords. This helps both readers and Google." });
+          if (wordCount < 300) issues.push({ id: "thin-content", category: "Content", severity: "critical", issue: `Thin content — only ${wordCount} words`, fix: "Aim for 600–1200 words on key pages. Cover the topic comprehensively to beat competitors." });
+          if (ogTags < 3) issues.push({ id: "og-tags", category: "Content", severity: "warning", issue: `Only ${ogTags} Open Graph tags — poor social sharing previews`, fix: "Add og:title, og:description, og:image, og:url for rich previews on social platforms." });
+          if (twitterTags === 0) issues.push({ id: "twitter-cards", category: "Content", severity: "info", issue: "No Twitter/X Card tags found", fix: "Add <meta name='twitter:card' content='summary_large_image'> and related tags." });
+          if (internalLinks < 3) issues.push({ id: "few-internal-links", category: "Content", severity: "info", issue: `Only ${internalLinks} internal links — weak site architecture`, fix: "Add 5–10 contextual internal links per page to distribute PageRank." });
+          if (h2s.length === 0 && wordCount > 300) issues.push({ id: "no-h2", category: "Content", severity: "warning", issue: "No H2 subheadings — poor content structure", fix: "Add H2/H3 subheadings with supporting keywords to improve readability and SEO." });
+          if (externalLinks === 0) issues.push({ id: "no-external-links", category: "Content", severity: "info", issue: "No external links to authoritative sources", fix: "Link to 2–3 high-authority sources to signal expertise to Google." });
+          if (!hasAuthor) issues.push({ id: "no-author", category: "Content", severity: "info", issue: "No author information detected — weak EEAT signals", fix: "Add author bios with credentials and social links to strengthen Expertise & Authoritativeness." });
+          if (!hasDate) issues.push({ id: "no-date", category: "Content", severity: "info", issue: "No publish date detected — freshness signal missing", fix: "Add a visible publish/update date and datePublished schema property." });
 
-          // Score
-          const crit = titleIssues.filter(i => i.severity === "critical").length;
-          const warn = titleIssues.filter(i => i.severity === "warning").length;
-          const info = titleIssues.filter(i => i.severity === "info").length;
-          const pageScore = Math.max(0, 100 - crit * 20 - warn * 8 - info * 3);
+          const crit = issues.filter(i => i.severity === "critical").length;
+          const warn = issues.filter(i => i.severity === "warning").length;
+          const info = issues.filter(i => i.severity === "info").length;
+          const pageScore = Math.max(0, 100 - crit * 18 - warn * 7 - info * 2);
+          pages.push({ url: pageUrl, score: pageScore, title, metaDesc, wordCount, h1s, h2Count: h2s.length, issues, scripts, pageSize, internalLinks });
 
-          pages.push({ url: pageUrl, score: pageScore, title, metaDesc, wordCount, h1s, h2Count: h2s.length, issues: titleIssues });
-
-          // Collect more pages from links
           $("a[href]").each((_, el) => {
             try {
-              const abs = new URL($(el).attr("href")!, pageUrl).href;
+              const href = $(el).attr("href")!;
+              if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
+              const abs = new URL(href, pageUrl).href.split("#")[0].split("?")[0];
               if (new URL(abs).hostname === domain && !visited.has(abs)) queue.push(abs);
             } catch {}
           });
@@ -1863,62 +1902,128 @@ ${Array.from(visited).map(page => {
 
       if (!pages.length) return res.status(422).json({ error: "Could not access the website. Make sure it is publicly accessible." });
 
-      // ── Aggregate results ─────────────────────────────────────────────────
+      // ── Aggregate ─────────────────────────────────────────────────────────
       const allIssues = pages.flatMap(p => p.issues);
       const uniqueIssues: any[] = [];
-      const seen = new Set<string>();
+      const seenIds = new Set<string>();
       for (const issue of allIssues) {
-        if (!seen.has(issue.id)) { seen.add(issue.id); uniqueIssues.push(issue); }
+        if (!seenIds.has(issue.id)) { seenIds.add(issue.id); uniqueIssues.push(issue); }
       }
-      const avgScore = Math.round(pages.reduce((s, p) => s + p.score, 0) / pages.length);
-      const techScore    = Math.max(0, 100 - uniqueIssues.filter(i => i.category === "Technical").length * 15);
-      const onPageScore  = Math.max(0, 100 - uniqueIssues.filter(i => i.category === "On-Page").length * 15);
-      const contentScore = Math.max(0, 100 - uniqueIssues.filter(i => i.category === "Content").length * 15);
 
-      // ── AI analysis ───────────────────────────────────────────────────────
+      const techIssues    = uniqueIssues.filter(i => i.category === "Technical");
+      const onPageIssues  = uniqueIssues.filter(i => i.category === "On-Page");
+      const contentIssues = uniqueIssues.filter(i => i.category === "Content");
+      const techScore     = Math.max(10, 100 - techIssues.length * 12);
+      const onPageScore   = Math.max(10, 100 - onPageIssues.length * 12);
+      const contentScore  = Math.max(10, 100 - contentIssues.length * 10);
+      const avgScripts    = totalScripts / pages.length;
+      const avgPageSize   = totalPageSize / pages.length;
+      const perfScore     = Math.max(10, Math.min(100, 100
+        - (avgScripts > 8 ? 25 : avgScripts > 5 ? 12 : 0)
+        - (avgPageSize > 300000 ? 25 : avgPageSize > 150000 ? 12 : 0)
+        - (!isHttps ? 20 : 0)));
+      const overallScore  = Math.round(techScore * 0.30 + onPageScore * 0.30 + contentScore * 0.25 + perfScore * 0.15);
+
+      const samplePage  = pages[0];
+      const issueList   = uniqueIssues.slice(0, 20).map(i => `[${i.severity.toUpperCase()}][${i.category}] ${i.issue}`).join("\n");
+
+      // ── AI Analysis ───────────────────────────────────────────────────────
       let aiInsights: any = {};
       try {
         const openai = new OpenAI({ apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY, baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL });
-        const issueList = uniqueIssues.map(i => `[${i.severity.toUpperCase()}][${i.category}] ${i.issue}`).join("\n");
-        const samplePage = pages[0];
-        const prompt = `You are an expert SEO consultant. A client has just audited: ${url}
+        const prompt = `You are a senior SEO consultant. Analyse this website: ${url}
 
-Key data:
-- Overall score: ${avgScore}/100
-- Pages crawled: ${pages.length}
-- Title: "${samplePage.title}"
-- Meta description: "${samplePage.metaDesc}"
-- Word count (home page): ${samplePage.wordCount}
-- Issues found:
+Site metrics:
+- Overall SEO score: ${overallScore}/100
+- Technical: ${techScore}/100 | On-Page: ${onPageScore}/100 | Content: ${contentScore}/100 | Performance: ${perfScore}/100
+- Pages crawled: ${pages.length}, HTTPS: ${isHttps ? "Yes" : "No"}, robots.txt: ${hasRobots ? "Yes" : "Missing"}, sitemap: ${hasSitemap ? "Yes" : "Missing"}
+- Home title: "${samplePage.title}" | Meta desc: "${samplePage.metaDesc?.substring(0, 80)}"
+- Home word count: ${samplePage.wordCount} | Avg page size: ${Math.round(avgPageSize / 1024)}KB | Avg scripts: ${Math.round(avgScripts)}
+- Issues:
 ${issueList}
 
-Provide a JSON response (no markdown) with this exact structure:
+Return ONLY valid JSON (no markdown) with EXACTLY this structure:
 {
-  "executiveSummary": "2-3 sentence expert summary of the site's SEO health",
-  "topPriority": "The single most impactful action to take RIGHT NOW in one sentence",
-  "quickWins": ["action 1 (can be done in < 1 hour)", "action 2", "action 3"],
-  "longTermActions": ["strategic action 1", "strategic action 2"],
-  "competitiveInsight": "One sentence insight about what this site needs to do to outrank competitors in its niche"
+  "executiveSummary": "2-3 sentence expert summary",
+  "topPriority": "Single most impactful action right now",
+  "quickWins": ["< 1 hour action 1", "action 2", "action 3"],
+  "longTermActions": ["strategic action 1", "action 2"],
+  "competitiveInsight": "One actionable sentence about outranking competitors",
+  "rankingPrediction": "Expected organic traffic impact in 90 days if top issues fixed",
+  "roadmap": {
+    "week1": ["Day 1-7 task 1", "task 2", "task 3"],
+    "month1": ["Day 8-30 task 1", "task 2", "task 3"],
+    "quarter": ["Day 31-90 task 1", "task 2", "task 3"]
+  },
+  "eeat": {
+    "experienceScore": 55,
+    "expertiseScore": 60,
+    "authorityScore": 40,
+    "trustScore": 50,
+    "improvements": ["EEAT improvement 1", "improvement 2", "improvement 3"]
+  },
+  "keywordOpportunities": [
+    {"keyword": "target keyword phrase", "intent": "informational", "difficulty": "low", "action": "Create a dedicated blog post targeting this keyword"},
+    {"keyword": "another keyword", "intent": "transactional", "difficulty": "medium", "action": "Optimise product/landing page for this term"},
+    {"keyword": "third keyword", "intent": "informational", "difficulty": "low", "action": "Write a comprehensive guide targeting this"}
+  ],
+  "contentSuggestions": [
+    {"page": "Home", "suggestion": "Add a clear value proposition and social proof above the fold"},
+    {"page": "Blog", "suggestion": "Publish 2 long-form posts per month on core topics"}
+  ],
+  "competitorComparison": {
+    "topCompetitors": ["likely-competitor1.com", "likely-competitor2.com", "likely-competitor3.com"],
+    "gaps": ["What top-ranking competitors have that this site lacks", "Gap 2"],
+    "advantages": ["Potential strength this site has or can develop", "Advantage 2"]
+  },
+  "internalLinkingIssues": ["Internal linking issue 1", "Issue 2"],
+  "coreWebVitals": {
+    "lcp": "needs-improvement",
+    "cls": "good",
+    "inp": "needs-improvement",
+    "lcpTip": "Optimise hero image: use WebP format, add explicit width/height, preload with <link rel=preload>",
+    "clsTip": "Add explicit width and height to all images and avoid dynamically injecting content above the fold",
+    "inpTip": "Defer non-critical JS, split code bundles, avoid long tasks blocking the main thread"
+  }
 }`;
 
-        const resp = await openai.chat.completions.create({ model: "gpt-4.1", messages: [{ role: "user", content: prompt }], temperature: 0.4, max_tokens: 700 });
-        const raw = resp.choices[0].message.content?.trim() || "{}";
-        aiInsights = JSON.parse(raw.replace(/```json|```/g, ""));
-      } catch { aiInsights = { executiveSummary: "AI analysis unavailable — see issues below for actionable recommendations.", topPriority: uniqueIssues.find(i => i.severity === "critical")?.fix || "Fix critical issues first.", quickWins: [], longTermActions: [], competitiveInsight: "" }; }
+        const resp = await openai.chat.completions.create({ model: "gpt-4.1", messages: [{ role: "user", content: prompt }], temperature: 0.35, max_tokens: 1800 });
+        const raw  = resp.choices[0].message.content?.trim() || "{}";
+        aiInsights = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      } catch {
+        aiInsights = {
+          executiveSummary: "AI analysis temporarily unavailable — see the issues list for actionable recommendations.",
+          topPriority: uniqueIssues.find(i => i.severity === "critical")?.fix || "Fix all critical issues first.",
+          quickWins: uniqueIssues.filter(i => i.severity === "warning").slice(0, 3).map((i: any) => i.fix),
+          longTermActions: [],
+          competitiveInsight: "",
+          rankingPrediction: "",
+          roadmap: { week1: [], month1: [], quarter: [] },
+          eeat: { experienceScore: 50, expertiseScore: 50, authorityScore: 40, trustScore: 50, improvements: [] },
+          keywordOpportunities: [],
+          contentSuggestions: [],
+          competitorComparison: { topCompetitors: [], gaps: [], advantages: [] },
+          internalLinkingIssues: [],
+          coreWebVitals: { lcp: "needs-improvement", cls: "needs-improvement", inp: "needs-improvement", lcpTip: "", clsTip: "", inpTip: "" },
+        };
+      }
 
-      res.json({
-        url,
-        domain,
-        score: avgScore,
-        techScore,
-        onPageScore,
-        contentScore,
+      // ── Assemble + cache report ───────────────────────────────────────────
+      const shareId = Math.random().toString(36).substring(2, 11);
+      const report  = {
+        url, domain, shareId,
+        score: overallScore, techScore, onPageScore, contentScore, perfScore,
         pagesCrawled: pages.length,
         timestamp: new Date().toISOString(),
         issues: uniqueIssues,
-        pages: pages.map(p => ({ url: p.url, score: p.score, title: p.title, wordCount: p.wordCount })),
+        pages: pages.map(p => ({ url: p.url, score: p.score, title: p.title, wordCount: p.wordCount, scripts: p.scripts, pageSize: p.pageSize })),
         aiInsights,
-      });
+      };
+
+      auditReportCache.set(shareId, { report, expires: Date.now() + 86400000 });
+      for (const [k, v] of auditReportCache.entries()) { if (v.expires < Date.now()) auditReportCache.delete(k); }
+
+      res.json(report);
     } catch (err: any) {
       console.error("AI audit error:", err);
       res.status(500).json({ error: "Audit failed: " + err.message });
