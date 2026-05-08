@@ -706,16 +706,7 @@ export default function Home() {
                 </ul>
               </div>
             </div>
-
-            {/* Bottom keyword strip */}
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground leading-loose">
-                <strong>Free SEO Audit Tool</strong> &nbsp;·&nbsp; <strong>SEO Checker Free</strong> &nbsp;·&nbsp; <strong>Website SEO Analysis</strong> &nbsp;·&nbsp; <strong>AI SEO Tool</strong> &nbsp;·&nbsp; <strong>Technical SEO Audit</strong> &nbsp;·&nbsp;
-                <strong>On-Page SEO Checker</strong> &nbsp;·&nbsp; <strong>Keyword Gap Analysis Tool</strong> &nbsp;·&nbsp; <strong>SEO Audit Report Generator</strong> &nbsp;·&nbsp; <strong>SEO Score Checker</strong> &nbsp;·&nbsp;
-                <strong>Competitor SEO Analysis Tool</strong> &nbsp;·&nbsp; <strong>Ahrefs Alternative Free</strong> &nbsp;·&nbsp; <strong>SEMrush Alternative Free</strong> &nbsp;·&nbsp; <strong>SEO Rank Checker Tool</strong> &nbsp;·&nbsp;
-                <strong>Website Ranking Checker</strong> &nbsp;·&nbsp; <strong>SEO Audit for WordPress</strong> &nbsp;·&nbsp; <strong>SEO Audit for Ecommerce Website</strong> &nbsp;·&nbsp; <strong>AI Content Optimization Tool</strong>
-              </p>
-            </div>
+        
           </div>
         </section>
 
